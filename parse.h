@@ -90,7 +90,7 @@ int parse(char** src, char** dest)
 	
 	// decide whether the tag is "tagonly" without content
 	tagonly=0;
-	for(i=0;i<4;i++){
+	for(i=0;i<5;i++){
 		if(strcmp(dest[0],tag_only[i])==0){
 			tagonly=1;
 			break;
