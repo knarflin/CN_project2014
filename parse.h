@@ -41,7 +41,7 @@ Input:
 Output:;
 return value: 0
 
-*src is not modified
+*src is not changed
 
 */
 
@@ -57,6 +57,8 @@ const char* tag_only[]={
 	"login",
 	"logout"
 };
+
+const int tag_only_count=5;
 
 // input:  src: command string
 // output: dest[0]:tag, dest[1]:content
@@ -90,7 +92,7 @@ int parse(char** src, char** dest)
 	
 	// decide whether the tag is "tagonly" without content
 	tagonly=0;
-	for(i=0;i<5;i++){
+	for(i=0;i<tag_only_count;i++){
 		if(strcmp(dest[0],tag_only[i])==0){
 			tagonly=1;
 			break;
