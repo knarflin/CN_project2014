@@ -96,6 +96,9 @@ Sample messege:
 
 ///////////////////////////// Code begins here /////////////////////////////
 
+#ifndef PARSE
+#define PARSE
+
 #include<string.h>
 #include<stdio.h>
 #include"mystring.h"
@@ -199,3 +202,4 @@ int parse(char** src, char** dest, int* intptr1, int* intptr2, int* isfiledata)
 	return 1;
 }
 
+#endif

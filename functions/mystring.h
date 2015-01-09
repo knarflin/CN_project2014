@@ -2,6 +2,10 @@
 // return value of startwith(): 
 // if true, return the length of startstring
 // if false, return -1
+
+#ifndef MYSTRING
+#define MYSTRING
+
 int startwith(char* string, char* startstring){
 	char* ptr1=string;
 	char* ptr2=startstring;
@@ -31,3 +35,5 @@ int myatoi(char** str, char delimiter){
 	*str=ptr;
 	return ans;
 }
+
+#endif

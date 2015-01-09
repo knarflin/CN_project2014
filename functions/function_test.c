@@ -1,8 +1,9 @@
 // parse_test.c
-#include"parse.h"
 #include<stdio.h>
+#include"parse.h"
+#include"filter.h"
 
-void test1(){
+void parse_test1(){
 	char* msg="<login> <account>Ruby<\\>  \r <signup>\n \r <password>crispy<\\> <nam";
 	char dst[2][32];
 	char* dest[2]={dst[0],dst[1]};
@@ -19,7 +20,7 @@ void test1(){
 	}
 }
 
-void test2(){
+void parse_test2(){
 	int fd; // file descriptor
 	int datagramcount; // 
 	int isfiledata;
@@ -41,8 +42,13 @@ void test2(){
 		printf("!!! Error: fragment! !!!\n");
 }
 
+void filter_test(){
+	char str[64]="fuck! oh FUCKkying? What a abcde fUCk!";
+	filter(str);
+	printf("%s\n",str);
+}
 int main()
 {
-	test2();
+	filter_test(); // replace it with the function you want to test
 	return 0;
 }
