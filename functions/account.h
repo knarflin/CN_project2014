@@ -20,7 +20,7 @@ int accountcnt;
 int create_account(char* username, char* password){
 	int i;
 	if(accountcnt>=MAX_ACCOUNT_CNT)
-		return 2; // username exist
+		return 2; // username already exists
 	for(i=0;i<accountcnt;i++){
 		if(strcmp(username,account_username[i])==0)
 			return 1; // account number reaches upper bound

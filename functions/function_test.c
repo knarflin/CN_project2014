@@ -56,6 +56,7 @@ void filter_test(){
 
 //---------------------------- account_test() ----------------------------
 void account_test(){
+	accountcnt=0;
 	int i;
 
 	i=create_account("Alice","lovely");
@@ -103,6 +104,9 @@ void account_test(){
 
 int main()
 {
+	//parse_test1();
+	//parse_test2();
+	//filter_test();
 	account_test(); // replace it with the function you want to test
 	return 0;
 }
