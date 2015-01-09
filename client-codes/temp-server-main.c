@@ -15,11 +15,11 @@
 #define SOCK_BUFFER_SIZE	1000
 
 #ifndef	DEFAULT_SERVER_PORT
-#define DEFAULT_SERVER_PORT	28976
+#define DEFAULT_SERVER_PORT	22233
 #endif
 
 #ifndef	DEFAULT_SERVER_IP 
-#define	DEFAULT_SERVER_IP	"140.112.30.50" //linux17.csie.org
+#define	DEFAULT_SERVER_IP	"127.0.0.1" //linux17.csie.org
 #endif
 
 void set_server_ip_and_port( char* serv_ip, int* serv_port ){
@@ -35,7 +35,7 @@ void set_server_ip_and_port( char* serv_ip, int* serv_port ){
 	}else if(reply == 'N' || reply == 'n' ){
 		strncpy( serv_ip, DEFAULT_SERVER_IP, strlen(DEFAULT_SERVER_IP) );
 		*serv_port = DEFAULT_SERVER_PORT;
-		printf( "IP and Port set to default. (140.112.30.50, 28976)\n");
+		printf( "IP and Port set to default. (%s, %d)\n", DEFAULT_SERVER_IP, DEFAULT_SERVER_PORT );
 	}else{
 		printf( "Invalid reply.\n");
 		exit(0);
@@ -69,8 +69,6 @@ int main(void){
 	/* bind socket */
 	memset( &serv_addr, 0, sizeof(serv_addr) );
 	serv_addr.sin_family 	= AF_INET;
-	//serv_addr.sin_port	= htons(DEFAULT_SERVER_PORT);
-	//assert( inet_aton( DEFAULT_SERVER_IP, &(serv_addr.sin_addr) ) > 0 );
 	serv_addr.sin_port	= htons(serv_port);
 	assert( inet_aton( serv_ip, &(serv_addr.sin_addr) ) > 0 );
 	if( bind(serv_sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr) ) < 0 ){
@@ -97,19 +95,22 @@ int main(void){
 		memset( r_buf, 0, sizeof(r_buf) );
 		memset( w_buf, 0, sizeof(w_buf) );
 
-		/* send msg */
+		/* recv msg */
 		fprintf( stdout, "Server recieving...\n");
-		if( recv( clie_sockfd, r_buf, sizeof(r_buf), 0 ) < 0 ){
+		if( recv( clie_sockfd, r_buf, sizeof(r_buf), 0 ) <= 0 ){
 			fprintf( stderr, "Fail at recv(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+			exit(0);
 		}
 		fprintf( stdout, "Server recieved msg:[%s]\n", r_buf );
 		
-		/* recieve msg */
+		
+		/* send msg */
 		fprintf( stdout, "What do you want to send to client?\n");
 		fscanf( stdin, "%s", w_buf );
 		if( send( clie_sockfd, w_buf, strlen(w_buf), 0 ) < 0 ){
 			fprintf( stderr, "Fail at send(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		}
+
 	}
 
 	/* close sockets */

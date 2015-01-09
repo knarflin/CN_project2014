@@ -9,18 +9,11 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#ifndef	DEFAULT_SERVER_PORT
-#define DEFAULT_SERVER_PORT	28976
-#endif
-
-#ifndef	DEFAULT_SERVER_IP
-#define	DEFAULT_SERVER_IP	"140.112.30.50" //linux17.csie.org
-#endif
-
-#define BUFFER_SIZE	1000
+#include "client-main.h"
+#include "client-state.h"
 
 
-void get_server_ip_and_port( char* serv_ip, int* serv_port ){
+int get_server_ip_and_port( char* serv_ip, int* serv_port ){
 	char reply;
 	printf( "What's remote server's IP and Port, hand-set or default?(H/D)\n" );
 	scanf("%c", &reply);
@@ -33,12 +26,12 @@ void get_server_ip_and_port( char* serv_ip, int* serv_port ){
 	}else if(reply == 'D' || reply == 'd' ){
 		strncpy( serv_ip, DEFAULT_SERVER_IP, strlen(DEFAULT_SERVER_IP) );
 		*serv_port = DEFAULT_SERVER_PORT;
-		printf( "IP and Port set to default. (140.112.30.50, 28976)\n");
+		printf( "IP and Port set to default. (%s, %d)\n", DEFAULT_SERVER_IP, DEFAULT_SERVER_PORT );
 	}else{
 		printf( "Invalid reply.\n");
 		exit(0);
 	}
-	return;
+	return 0;
 }
 
 int main(void){
@@ -47,8 +40,6 @@ int main(void){
 	int serv_port;
 	int clie_sockfd;
 	struct sockaddr_in serv_addr;
-	char r_buf[ BUFFER_SIZE ];
-	char w_buf[ BUFFER_SIZE ];
 
 	/* set server ip and port */
 	get_server_ip_and_port( serv_ip, &serv_port );
@@ -69,31 +60,9 @@ int main(void){
 		exit(0);
 	}
 
-	/* send and recv */
-	while(1){
-		memset( &r_buf, 0, sizeof(r_buf) );
-		memset( &w_buf, 0, sizeof(w_buf) );
+	s_offline_general( clie_sockfd );
 
-		/* send msg to server*/
-		printf( "What do you want to send to server\n" );
-		fscanf( stdin, "%s", w_buf );
-		if( send( clie_sockfd, w_buf, strlen(w_buf), 0) < 0 ){
-			fprintf( stderr, "Fail at send(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
-			exit(0);
-		}
-
-		/* recieve msg from server*/
-		printf( "Client recieving...\n");
-		if( recv( clie_sockfd, r_buf, sizeof(r_buf), 0 ) < 0 ){
-			fprintf( stderr, "Fail at recv(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
-			exit(0);
-		}
-		printf( "Client recieved msg:[%s]\n", r_buf );
-	}
-	
 	/* close socket*/
 	close( clie_sockfd );
 	return 0;
 }
-
-
