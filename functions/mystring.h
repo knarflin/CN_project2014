@@ -1,7 +1,7 @@
 
 // return value of startwith(): 
 // if true, return the length of startstring
-// if false, return -1
+// if false, return 0
 
 #ifndef MYSTRING
 #define MYSTRING
