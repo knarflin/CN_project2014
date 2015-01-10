@@ -192,7 +192,7 @@ int parse(char** src, char** dest, char* filename, int* datagram_cnt, int* isfil
 		else{ptr++;}
 	}
 
-	*src=readpos;
+	*src=readpos+2;
 	return 1;
 }
 
