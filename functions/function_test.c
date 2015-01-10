@@ -17,7 +17,7 @@ void parse_test1(){
 	// parse commands consecutively
 	for(i=0;i<6;i++){
 		if(parse(&pos,dest,NULL,NULL,NULL)) // return 1 for succeed
-			printf("%s: %s\n",dst[0],dest[1]);
+			printf("%s: %s\n",dst[0],dst[1]);
 		else // return 0 for fragment
 			printf("!!! Error: fragment! !!!\n");
 	}
@@ -35,13 +35,13 @@ void parse_test2(){
 	char* pos=msg;
 	if(parse(&pos,dest,filenameptr,&datagram_cnt,&isfiledata)){
 		if(isfiledata){ // 1 for isfiledata, 0 for not
-			printf("Is file content!\n");
+			printf("Is file data!\n");
 			printf("filename: %s\n",filenameptr);
 			printf("datagram_cnt: %d\n",datagram_cnt);
-			printf("File content: %s\n",dst[1]);
+			printf("File data: %s\n",dst[1]);
 		}
 		else
-			printf("Not file content!\n");
+			printf("Not file data!\n");
 	}
 	else
 		printf("!!! Error: fragment! !!!\n");

@@ -101,16 +101,18 @@ Sample messege:
 
 #include<string.h>
 #include<stdio.h>
-#include"mystring.h"
+#include"client-mystring.h"
 #include<assert.h>
 
 const char* tag_only[]={
 	"login-u-ok",
 	"login-p-ok",
-	"logout-comfirmed"
+	"user-offline",
+	"user-online",
+	"logout-confirmed"
 };
 
-const int tag_only_count=3;
+const int tag_only_count=5;
 
 // input: src: command string
 // output: dest[0]:tag, dest[1]:content
@@ -196,7 +198,7 @@ int parse(char** src, char** dest, char* filename, int* datagram_cnt, int* isfil
 		else{ptr++;}
 	}
 
-	*src=readpos;
+	*src=readpos + 2;
 	return 1;
 }
 

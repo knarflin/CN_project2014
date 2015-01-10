@@ -154,6 +154,8 @@ int s_online_general( int clie_sockfd ){
 	int err;
 	int logout_flag = 0;
 	char reply;
+	
+	//TODO mutex_init
 
 	err = pthread_create( &recv_tid, NULL, &s_online_recv, &clie_sockfd );
 	if( err != 0 ){
@@ -214,38 +216,45 @@ int s_online_recv( void* clie_sockfd_ptr ){
 	int clie_sockfd = *(int *)clie_sockfd_ptr;
 	printf( "Enter s_online_recv()\n" );	//debug point
 	
-	char  r_buf[ DEFAULT_BUFFER_SIZE ] = {0};
-	int   r_buf_valid_len;
+	char  r_buf[ BUFFER_SIZE ] = {0};
+	int   buf_valid_len = 0;
 
-	char  filename = [ FILENAME_LIMIT_LEN ];
+	char  filename[ FILENAME_LIMIT_LEN ];
 	int   datagram_cnt;
 	int   isfiledata;
 	char  tag[ TAG_LIMIT_LEN ], content[ FILESEG_LIMIT_LEN ];
-	char* dest[2] = { tag, content } 
+	char* dest[2] = { tag, content };
 	char* pos = r_buf;
 
 	char  src_usr[ USERNAME_LIMIT_LEN ] = {0};
-	struct wfile wf_list;
+	struct wfile* wf_list = NULL;
+	int logout_flag = 0;
 
-	while(1){
-		recv( clie_sockfd, r_buf, sizeof(r_buf), 0 );
+	while( !logout_flag ){
+		if( recv( clie_sockfd, &r_buf[buf_valid_len], sizeof(r_buf) - buf_valid_len - 1, 0 ) <= 0 ){
+			fprintf( stderr, "Fail at recv(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+			return -1;
+		}
 		while( parse( &pos, dest, filename, &datagram_cnt, &isfiledata ) != 0 ){
-			
+
 			if( isfiledata ){
-				//write_file( wf_list, filename, &datagram_cnt, dest[1] );
+				wf_list = write_file( wf_list, filename, datagram_cnt, dest[1] );
+				print_wf( wf_list ); //debug point
 			}else if( strcasecmp( dest[0], "logout-confirmed" ) == 0 ){
-				itsig_enqueue( _itsig_tail, IT_SIGNAL_LOGOUT_COMFIRMED );
+				//_itsig_enqueue( &_itsig_head, &_itsig_tail, IT_SIGNAL_LOGOUT_CONFIRMED );
+				logout_flag = 1;
 			}else if( strcasecmp( dest[0], "user-online" ) == 0 ){
-				itsig_enqueue( _itsig_tail, IT_SIGNAL_DTSUSER_ONLINE );
+				_itsig_enqueue( &_itsig_head, &_itsig_tail, IT_SIGNAL_DSTUSER_ONLINE );
 			}else if( strcasecmp( dest[0], "user-offline" ) == 0 ){
-				itsig_enqueue( _itsig_tail, IT_SIGNAL_DSTUSER_OFFLINE );
+				_itsig_enqueue( &_itsig_head, &_itsig_tail, IT_SIGNAL_DSTUSER_OFFLINE );
 			}else if( strcasecmp( dest[0], "name" ) == 0 ){
-				snprintf( src_usr, "%s", dest[1] );
+				sprintf( src_usr, "%s", dest[1] );
 			}else if( strcasecmp( dest[0], "message") == 0 ){
 				printf( "MSG FROM %s: [%s]\n", src_usr, dest[1] );
 			}
 		}
-		r_buf_valid_len = adjust_buffer( rbuf, &pos );
+		buf_valid_len = adjust_buffer( r_buf, sizeof(r_buf), &pos );
+		//fprintf( stderr, "s_online_recv(): buf_valid_len = %d\n", buf_valid_len ); //debug point
 	}
 	return 0;
 }
