@@ -96,6 +96,9 @@ Sample messege:
 
 ///////////////////////////// Code begins here /////////////////////////////
 
+#ifndef PARSE
+#define PARSE
+
 #include<string.h>
 #include<stdio.h>
 #include"mystring.h"
@@ -114,7 +117,7 @@ const int tag_only_count=5;
 // input: src: command string
 // output: dest[0]:tag, dest[1]:content
 // return value: 0 for failed, 1 for succeeded
-int parse(char** src, char** dest, int* intptr1, int* intptr2, int* isfiledata)
+int parse(char** src, char** dest, char* filename, int* datagram_cnt, int* isfiledata)
 {
 	char tmpchar;
 	int ptr=0;
@@ -152,13 +155,13 @@ int parse(char** src, char** dest, int* intptr1, int* intptr2, int* isfiledata)
 	// decide whether the tag is "filedata"
 	tempptr=dest[0];
 	if(startwith(tempptr,"filedata")){
-		assert(intptr1!=NULL);
-		assert(intptr2!=NULL);
+		assert(filename!=NULL);
+		assert(datagram_cnt!=NULL);
 		assert(isfiledata!=NULL);
 		*isfiledata=1;
 		tempptr+=9;
-		*intptr1=myatoi(&tempptr,',');
-		*intptr2=myatoi(&tempptr,0);
+		readuntil(&tempptr,filename,',');
+		*datagram_cnt=myatoi(&tempptr,0);
 	}
 
 	// decide whether the tag is "tagonly" without content
@@ -199,3 +202,4 @@ int parse(char** src, char** dest, int* intptr1, int* intptr2, int* isfiledata)
 	return 1;
 }
 
+#endif

@@ -1,7 +1,11 @@
 
 // return value of startwith(): 
 // if true, return the length of startstring
-// if false, return -1
+// if false, return 0
+
+#ifndef MYSTRING
+#define MYSTRING
+
 int startwith(char* string, char* startstring){
 	char* ptr1=string;
 	char* ptr2=startstring;
@@ -31,3 +35,21 @@ int myatoi(char** str, char delimiter){
 	*str=ptr;
 	return ans;
 }
+
+// read from *src, until character "delimiter", and copy all characters that were read
+// into dest (delimiter excluded)
+// Side effect: *src will point to the character following the delimiter
+void readuntil(char** src, char* dest, char delimiter){
+	char* readpos=*src;
+	char* dest_ptr=dest;
+	while(*readpos!=0 && *readpos!=delimiter){
+		*dest_ptr=*readpos;
+		readpos++;
+		dest_ptr++;
+	}
+	*dest_ptr=0;
+	readpos++;
+	*src=readpos;
+}		
+
+#endif
