@@ -1,4 +1,4 @@
-// parse_test.c
+// function_test.c
 #include<stdio.h>
 #include"parse.h"
 #include"filter.h"
@@ -136,7 +136,7 @@ void jobqueue_test(){
 	i=dequeue(&accountinfo[1].job_queue,&jptr); 
 	if(i==0)
 		print_job(jptr);
-	else if(i==1)
+	else if(i==-1)
 		printf("Job queue is empty!\n");
 	printf("\n");
 

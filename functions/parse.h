@@ -57,14 +57,6 @@ return value: 0
 
 /*
 
-Sample messege:
-
-<signup>
-<fail>
-<ok>
-<login>
-<logout>
-
 ---------------------------------Sample 4---------------------------------
 Input:
 *src = "<filedata,2,15>Hello world!<\\>"
@@ -104,7 +96,9 @@ Sample messege:
 #include"mystring.h"
 #include<assert.h>
 
-const char* tag_only[]={
+// When changing tag_only words, two code segments needs to be modified:
+
+const char* tag_only[]={ // modifiable 1/2
 	"signup",
 	"fail",
 	"ok",
@@ -112,7 +106,7 @@ const char* tag_only[]={
 	"logout"
 };
 
-const int tag_only_count=5;
+const int tag_only_count=5; // modifiable 2/2
 
 // input: src: command string
 // output: dest[0]:tag, dest[1]:content
