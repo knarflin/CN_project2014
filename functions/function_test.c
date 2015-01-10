@@ -16,9 +16,9 @@ void parse_test1(){
 
 	// parse commands consecutively
 	for(i=0;i<6;i++){
-		if(parse(&pos,dest,NULL,NULL,NULL))
+		if(parse(&pos,dest,NULL,NULL,NULL)) // return 1 for succeed
 			printf("%s: %s\n",dst[0],dest[1]);
-		else
+		else // return 0 for fragment
 			printf("!!! Error: fragment! !!!\n");
 	}
 }
@@ -34,7 +34,7 @@ void parse_test2(){
 	char* dest[2]={dst[0],dst[1]};
 	char* pos=msg;
 	if(parse(&pos,dest,filenameptr,&datagram_cnt,&isfiledata)){
-		if(isfiledata){
+		if(isfiledata){ // 1 for isfiledata, 0 for not
 			printf("Is file content!\n");
 			printf("filename: %s\n",filenameptr);
 			printf("datagram_cnt: %d\n",datagram_cnt);
@@ -120,7 +120,7 @@ void jobqueue_test(){
 
 	// assign each job to some account
 	enqueue(&accountinfo[0].job_queue,&jb[0]);
-	enqueue(&accountinfo[0].job_queue,&jb[3]);
+	enqueue(&accountinfo[0].job_queue,&jb[3]); // allocate job 3 to account 0
 	enqueue(&accountinfo[1].job_queue,&jb[1]);
 	enqueue(&accountinfo[2].job_queue,&jb[2]);
 
@@ -152,9 +152,9 @@ void jobqueue_test(){
 int main()
 {
 	//parse_test1();
-	parse_test2();
+	//parse_test2();
 	//filter_test();
 	//account_test();
-	//jobqueue_test(); // replace it with the function you want to test
+	jobqueue_test(); // replace it with the function you want to test
 	return 0;
 }

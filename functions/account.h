@@ -26,9 +26,9 @@ struct account{
 int create_account(char* username, char* password){
 	int i;
 	if(strlen(username)>USERNAME_LIMIT_LEN)
-		return 3;
+		return 3; // username length exceeds upper bound
 	if(strlen(password)>PASSWORD_LIMIT_LEN)
-		return 4;
+		return 4; // password length exceeds upper bound
 	if(accountcnt>=MAX_ACCOUNT_CNT)
 		return 2; // username already exists
 	for(i=0;i<accountcnt;i++){
