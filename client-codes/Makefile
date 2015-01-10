@@ -3,8 +3,8 @@
 all:
 	gcc 	-Wall  	-c client-main.c  client-main.h client-state.h 
 	gcc 	-Wall 	-c client-main.h client-state.h client-state.c
-	gcc	-Wall	client-state.o client-main.o 	-o client
-	gcc	-Wall 	temp-server-main.c 	-o server
+	gcc	-Wall	-pthread client-state.o client-main.o 	-o client
+	gcc	-Wall 	temp-server-main.c -pthread	-o server
 run-s:
 	./server
 run-c:

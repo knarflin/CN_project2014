@@ -6,6 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -34,8 +35,9 @@ void set_server_ip_and_port( char* serv_ip, int* serv_port ){
 		printf( "\n" );
 	}else if(reply == 'N' || reply == 'n' ){
 		strncpy( serv_ip, DEFAULT_SERVER_IP, strlen(DEFAULT_SERVER_IP) );
+		serv_ip[ strlen(DEFAULT_SERVER_IP) ] = '\0' ;
 		*serv_port = DEFAULT_SERVER_PORT;
-		printf( "IP and Port set to default. (%s, %d)\n", DEFAULT_SERVER_IP, DEFAULT_SERVER_PORT );
+		printf( "IP and Port set to default. (%s, %d)\n", serv_ip, *serv_port );
 	}else{
 		printf( "Invalid reply.\n");
 		exit(0);
@@ -43,6 +45,22 @@ void set_server_ip_and_port( char* serv_ip, int* serv_port ){
 	return;
 }
 
+int recv_func( void* fd_ptr ){
+	int clie_sockfd = *(int *)fd_ptr;
+	printf( "fd = %d\n", clie_sockfd );//debug point
+
+	/* recv msg */
+	char r_buf[ SOCK_BUFFER_SIZE ];
+	while(1){
+		memset( r_buf, 0, sizeof( r_buf ) );
+		if( recv( clie_sockfd, r_buf, sizeof(r_buf), 0 ) <= 0 ){
+			fprintf( stderr, "Fail at recv(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+			exit(0);
+		}
+		fprintf( stdout, "Server recieved msg:[%s]\n", r_buf );
+	}
+	return 0;
+}
 
 int main(void){
 
@@ -53,7 +71,6 @@ int main(void){
 	int clie_addr_size;
 	struct sockaddr_in clie_addr;
 	struct sockaddr_in serv_addr;
-	char r_buf[ SOCK_BUFFER_SIZE ];
 	char w_buf[ SOCK_BUFFER_SIZE ];
 
 	/* set server ip and port */
@@ -84,33 +101,38 @@ int main(void){
 
 	/* accept socket */
 	memset( &clie_addr, 0, sizeof(clie_addr) );
-	clie_sockfd = accept( serv_sockfd, (struct sockaddr *)&clie_addr, &clie_addr_size );
+	clie_sockfd = accept( serv_sockfd, (struct sockaddr *)&clie_addr, (socklen_t *__restrict__)&clie_addr_size );
 	if( clie_sockfd < 0 ){
 		fprintf( stderr, "Fail to accept socket, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		exit(0);
 	}
+	
+	/* create a thread for recieving */
+	int err;
+	pthread_t recv_tid;
+	err = pthread_create( &recv_tid, NULL, &recv_func, &clie_sockfd );
+	if( err != 0 ){
+		fprintf( stderr, "Fail to create thread, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(err) );
+	}
 
-	/* recieve and send msg through socket */
+	/* send msg through socket */
 	while(1){
-		memset( r_buf, 0, sizeof(r_buf) );
-		memset( w_buf, 0, sizeof(w_buf) );
-
-		/* recv msg */
-		fprintf( stdout, "Server recieving...\n");
-		if( recv( clie_sockfd, r_buf, sizeof(r_buf), 0 ) <= 0 ){
-			fprintf( stderr, "Fail at recv(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
-			exit(0);
-		}
-		fprintf( stdout, "Server recieved msg:[%s]\n", r_buf );
-		
-		
 		/* send msg */
+		memset( w_buf, 0, sizeof(w_buf) );
 		fprintf( stdout, "What do you want to send to client?\n");
 		fscanf( stdin, "%s", w_buf );
 		if( send( clie_sockfd, w_buf, strlen(w_buf), 0 ) < 0 ){
 			fprintf( stderr, "Fail at send(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		}
+	}
 
+	int retval;
+	err = pthread_join( recv_tid, (void **)&retval ) ;
+	if( err != 0 ){
+		fprintf( stderr, "Fail to join thread, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(err) );
+		exit(0);
+	}else if( retval != 0 ){
+		fprintf( stderr, "Bad return from thread, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 	}
 
 	/* close sockets */
