@@ -23,20 +23,21 @@ void parse_test1(){
 	}
 }
 
-//---------------------------- parse_test2 ----------------------------
+//---------------------------- parse_test2 for <filedata,autorun.exe,15>xxx<\> ----------------------------
 void parse_test2(){
-	int fd; // file descriptor
-	int datagramcount; // 
+	char filename[64];
+	char* filenameptr=filename;
+	int datagram_cnt; // 
 	int isfiledata;
-	char* msg="<filedata,2,15>Hello world!<\\>";
+	char* msg="<filedata,autorun.exe,15>Hello world!<\\>";
 	char dst[2][32];
 	char* dest[2]={dst[0],dst[1]};
 	char* pos=msg;
-	if(parse(&pos,dest,&fd,&datagramcount,&isfiledata)){
+	if(parse(&pos,dest,filenameptr,&datagram_cnt,&isfiledata)){
 		if(isfiledata){
 			printf("Is file content!\n");
-			printf("fd: %d\n",fd);
-			printf("datagramcount: %d\n",datagramcount);
+			printf("filename: %s\n",filenameptr);
+			printf("datagram_cnt: %d\n",datagram_cnt);
 			printf("File content: %s\n",dst[1]);
 		}
 		else
@@ -151,9 +152,9 @@ void jobqueue_test(){
 int main()
 {
 	//parse_test1();
-	//parse_test2();
+	parse_test2();
 	//filter_test();
 	//account_test();
-	jobqueue_test(); // replace it with the function you want to test
+	//jobqueue_test(); // replace it with the function you want to test
 	return 0;
 }
