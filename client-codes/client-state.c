@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <errno.h>
 
 #include <unistd.h>
@@ -27,7 +28,7 @@ int s_offline_general( int clie_sockfd ){
 				break;
 			case 'C':
 			case 'c':
-				if( s_offline_create( clie_sockfd ) < 0 ) return -1;
+				if( s_offline_signup( clie_sockfd ) < 0 ) return -1;
 				break;
 			case 'Q':
 			case 'q':
@@ -46,33 +47,32 @@ int s_offline_general( int clie_sockfd ){
 
 int s_offline_login( int clie_sockfd ){
 
-	char account	[ ACCOUNT_LIMIT_LEN 	] = {0};
+	char username	[ USERNAME_LIMIT_LEN 	] = {0};
 	char password	[ PASSWORD_LIMIT_LEN 	] = {0};
 	char r_buf	[ BUFFER_SIZE		] = {0};
 	char w_buf	[ BUFFER_SIZE 		] = {0};
 
-	printf( "Enter your Account:\n" );
-	scanf( "%s", account);
+	printf( "Enter your username:\n" );
+	scanf( "%s", username);
 	
-	sprintf( w_buf, "<login>" "<account>%s<\\>", account );
+	sprintf( w_buf, "<login>" "<username>%s<\\>", username );
 	if( send( clie_sockfd, w_buf, strlen(w_buf), 0) < 0 ){
 		fprintf( stderr, "Fail at send(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		return -1;
 	}
 	
-	memset( r_buf, 0, sizeof(r_buf) );
-	if( recv( clie_sockfd, r_buf, strlen("<login-A-OK>"), MSG_WAITALL ) != strlen("<login-A-OK>") ){
+	if( recv( clie_sockfd, r_buf, strlen("<login-U-OK>"), MSG_WAITALL ) != strlen("<login-U-OK>") ){
 		fprintf( stderr, "Fail at recv(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		return -1;
-	}else if( strcmp( r_buf, "<login-FAIL>" ) == 0 ){
-		printf( "No account\n" );
+	}else if( strcasecmp( r_buf, "<login-FAIL>" ) == 0 ){
+		printf( "Username not exist\n" );
 		return 0;
-	}else if( strcmp( r_buf, "<login-A-OK>" ) != 0 ){
+	}else if( strcasecmp( r_buf, "<login-U-OK>" ) != 0 ){
 		fprintf( stderr, "Bad reply from server, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		return -1;
 	}
 	
-	printf( "Enter your Password:\n" );
+	printf( "Enter your password:\n" );
 	scanf( "%s", password );
 
 	sprintf( w_buf, "<password>%s<\\>", password );
@@ -84,10 +84,10 @@ int s_offline_login( int clie_sockfd ){
 	if( recv( clie_sockfd, r_buf, strlen("<login-P-OK>"), MSG_WAITALL ) != strlen("<login-P-OK>") ){
 		fprintf( stderr, "Fail at recv(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		return -1;
-	}else if( strcmp( r_buf, "<login-FAIL>" ) == 0 ){
+	}else if( strcasecmp( r_buf, "<login-FAIL>" ) == 0 ){
 		printf( "Wrong password\n" );
 		return 0;
-	}else if( strcmp( r_buf, "<login-P-OK>" ) != 0 ){
+	}else if( strcasecmp( r_buf, "<login-P-OK>" ) != 0 ){
 		fprintf( stderr, "Bad reply from server, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		return -1;
 	}
@@ -98,11 +98,59 @@ int s_offline_login( int clie_sockfd ){
 	return 0;
 }
 
-int s_offline_create( int clie_sockfd ){
+int s_offline_signup( int clie_sockfd ){
+	
+	char username	[ USERNAME_LIMIT_LEN 	] = {0};
+	char password	[ PASSWORD_LIMIT_LEN 	] = {0};
+	char r_buf	[ BUFFER_SIZE		] = {0};
+	char w_buf	[ BUFFER_SIZE 		] = {0};
+
+	printf( "New username:\n" );
+	scanf( "%s", username);
+	
+	sprintf( w_buf, "<signup>" "<username>%s<\\>", username );
+	if( send( clie_sockfd, w_buf, strlen(w_buf), 0) < 0 ){
+		fprintf( stderr, "Fail at send(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+		return -1;
+	}
+	
+	if( recv( clie_sockfd, r_buf, strlen("<signup-U-OK>"), MSG_WAITALL ) != strlen("<signup-U-OK>") ){
+		fprintf( stderr, "Fail at recv(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+		return -1;
+	}else if( strcasecmp( r_buf, "<signup-FAIL>" ) == 0 ){
+		printf( "Username alrealy exists\n" );
+		return 0;
+	}else if( strcasecmp( r_buf, "<signup-U-OK>" ) != 0 ){
+		fprintf( stderr, "Bad reply from server, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+		return -1;
+	}
+	
+	printf( "New password:\n" );
+	scanf( "%s", password );
+
+	sprintf( w_buf, "<password>%s<\\>", password );
+	if( send( clie_sockfd, w_buf, strlen(w_buf), 0) < 0 ){
+		fprintf( stderr, "Fail at send(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+		return -1;
+	}
+
+	if( recv( clie_sockfd, r_buf, strlen("<signup-P-OK>"), MSG_WAITALL ) != strlen("<signup-P-OK>") ){
+		fprintf( stderr, "Fail at recv(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+		return -1;
+	}else if( strcasecmp( r_buf, "<signup-P-OK>" ) == 0 ){
+		printf( "Sign up successful\n" );
+	}else{
+		fprintf( stderr, "Bad reply from server, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+		return -1;
+	}
+	
 	return 0;
 };
+
+
 int s_online_general();
 int s_online_ftp();
+
 /*
 int s_online_msg(){
 	// send and recv

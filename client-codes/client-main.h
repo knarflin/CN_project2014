@@ -9,5 +9,5 @@
 #endif
 
 #define BUFFER_SIZE		2000
-#define ACCOUNT_LIMIT_LEN	100
+#define USERNAME_LIMIT_LEN	100
 #define PASSWORD_LIMIT_LEN	100
