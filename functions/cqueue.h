@@ -1,4 +1,4 @@
-// cuque.h
+// cqueue.h
 // circular queue
 
 #include "job.h"
