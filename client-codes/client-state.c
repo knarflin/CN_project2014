@@ -11,6 +11,7 @@
 #include <sys/socket.h>
 #include "client-main.h"
 #include "client-state.h"
+#include "client-parse.h"
 
 
 int s_offline_general( int clie_sockfd ){
@@ -212,16 +213,40 @@ static struct it_signal* _itsig_tail = NULL;
 int s_online_recv( void* clie_sockfd_ptr ){
 	int clie_sockfd = *(int *)clie_sockfd_ptr;
 	printf( "Enter s_online_recv()\n" );	//debug point
-	/*
-	char* ptr = NULL;
-	char r_buf[ DEFAULT_BUFFER_SIZE ] = {0};
 	
+	char  r_buf[ DEFAULT_BUFFER_SIZE ] = {0};
+	int   r_buf_valid_len;
+
+	char  filename = [ FILENAME_LIMIT_LEN ];
+	int   datagram_cnt;
+	int   isfiledata;
+	char  tag[ TAG_LIMIT_LEN ], content[ FILESEG_LIMIT_LEN ];
+	char* dest[2] = { tag, content } 
+	char* pos = r_buf;
+
+	char  src_usr[ USERNAME_LIMIT_LEN ] = {0};
+	struct wfile wf_list;
+
 	while(1){
-		memset( r_buf, 0, sizeof(r_buf) );
 		recv( clie_sockfd, r_buf, sizeof(r_buf), 0 );
-		//TODO
+		while( parse( &pos, dest, filename, &datagram_cnt, &isfiledata ) != 0 ){
+			
+			if( isfiledata ){
+				//write_file( wf_list, filename, &datagram_cnt, dest[1] );
+			}else if( strcasecmp( dest[0], "logout-confirmed" ) == 0 ){
+				itsig_enqueue( _itsig_tail, IT_SIGNAL_LOGOUT_COMFIRMED );
+			}else if( strcasecmp( dest[0], "user-online" ) == 0 ){
+				itsig_enqueue( _itsig_tail, IT_SIGNAL_DTSUSER_ONLINE );
+			}else if( strcasecmp( dest[0], "user-offline" ) == 0 ){
+				itsig_enqueue( _itsig_tail, IT_SIGNAL_DSTUSER_OFFLINE );
+			}else if( strcasecmp( dest[0], "name" ) == 0 ){
+				snprintf( src_usr, "%s", dest[1] );
+			}else if( strcasecmp( dest[0], "message") == 0 ){
+				printf( "MSG FROM %s: [%s]\n", src_usr, dest[1] );
+			}
+		}
+		r_buf_valid_len = adjust_buffer( rbuf, &pos );
 	}
-	*/
 	return 0;
 }
 
