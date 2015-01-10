@@ -30,10 +30,10 @@ int create_account(char* username, char* password){
 	if(strlen(password)>PASSWORD_LIMIT_LEN)
 		return 4; // password length exceeds upper bound
 	if(accountcnt>=MAX_ACCOUNT_CNT)
-		return 2; // username already exists
+		return 2; // account number reaches upper bound
 	for(i=0;i<accountcnt;i++){
 		if(strcmp(username,accountinfo[i].username)==0)
-			return 1; // account number reaches upper bound
+			return 1; // username already exists
 	}
 	strcpy(accountinfo[accountcnt].username,username);
 	strcpy(accountinfo[accountcnt].password,password);
