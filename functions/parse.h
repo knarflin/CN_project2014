@@ -184,10 +184,6 @@ int parse(char** src, char** dest, char* filename, int* datagram_cnt, int* isfil
 			dest[1][ptr]=0;
 			break;
 		}
-		else if(dest[1][ptr]=='\r'||dest[1][ptr]=='\n'){
-			dest[1][ptr]='\r';
-			dest[1][++ptr]='\n';
-		}
 		else if(dest[1][ptr]==0){return 0;}
 		else{ptr++;}
 	}
