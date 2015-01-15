@@ -207,7 +207,23 @@ void jobqueue_test(){
 
 };
 
-void msgHistory_test(){
+void msg_history_test(){
+	char msg[1024];
+	create_account("Alice","lovely");
+	create_account("Bob","crispy");
+	create_account("Cathy","sweety");
+	create_account("Derrick","hungry");
+
+	job_assign("Bob","Alice",'m',0,NULL,"Bob!");
+	job_assign("Alice","Bob",'m',0,NULL,"Yes?");
+	job_assign("Bob","Alice",'m',0,NULL,"Nice day, ah? :)");
+	job_assign("Alice","Bob",'m',0,NULL,"...");
+	job_assign("Alice","Cathy",'m',0,NULL,"Alice?");
+	job_assign("Alice","Bob",'m',0,NULL,"Really a nice day...");
+
+	// get_historical_message: return 0 for ok, 1 for no such username (the 1st parameter)
+	get_historical_message("Alice","Bob",16,msg); // get 16 latest chatting records between Alice and Bob
+	printf("%s",msg);
 }
 
 int main()
@@ -216,6 +232,7 @@ int main()
 	//parse_test2();
 	//filter_test();
 	//account_test();
-	jobqueue_test(); // replace it with the function you want to test
+	//jobqueue_test(); // replace it with the function you want to test
+	msg_history_test();
 	return 0;
 }

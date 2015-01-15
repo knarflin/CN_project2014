@@ -3,6 +3,7 @@
 
 #include<string.h>
 #include"cqueue.h"
+#include"msg_history.h"
 
 #ifndef USERNAME_LIMIT_LEN
 #define USERNAME_LIMIT_LEN	100
@@ -21,11 +22,8 @@ struct account{
 	char password[PASSWORD_LIMIT_LEN];
 	int isOnline;
 	struct cqueue job_queue;
+	struct msg_history message_history;
 }accountinfo[MAX_ACCOUNT_CNT];
-
-void account_init(struct account* acc){
-
-}
 
 int create_account(char* username, char* password){
 	int i;
@@ -44,6 +42,7 @@ int create_account(char* username, char* password){
 	accountinfo[accountcnt].isOnline = 0;
 	accountinfo[accountcnt].job_queue.head = 0;
 	accountinfo[accountcnt].job_queue.tail = 0;
+	accountinfo[accountcnt].message_history.msgcnt = 0;
 	accountcnt++;
 	return 0; // created successfully
 }
@@ -90,6 +89,31 @@ int is_online(char* username){
 	return -1;
 }
 
+void add_message(char* sender, char* receiver, char* content){
+	int i;
+	int sender_length;
+	int content_length;
+	sender_length = strlen(sender);
+	content_length = strlen(content);
+	for(i=0;i<accountcnt;i++){
+		if(strcmp(sender,accountinfo[i].username)==0 || strcmp(receiver,accountinfo[i].username)==0 ){
+			add_message0(&accountinfo[i].message_history,sender,receiver,content);
+		}
+	}
+}
+
+int get_historical_message(char* username, char* friend_name, int number_of_msgs, char* buffer){
+	int i;
+	for(i=0;i<accountcnt;i++){
+		if(strcmp(username,accountinfo[i].username)==0){
+			get_historical_message0(&accountinfo[i].message_history, friend_name, number_of_msgs, buffer);
+			return 0;
+		}
+	}
+	buffer[0]=0;
+	return -1;
+}
+
 // assign the attributes of a job
 // return value: 
 //		0: successful
@@ -106,6 +130,7 @@ int job_assign(char* dst_usr, char* _src_usr, char _jobtype, int _seg_count, cha
 	jb->content=_content;
 	for(i=0;i<accountcnt;i++){
 		if(strcmp(dst_usr,accountinfo[i].username)==0){
+			if(_jobtype=='m') add_message(_src_usr,dst_usr,_content);
 			return enqueue(&accountinfo[i].job_queue,jb);
 		}
 	}
