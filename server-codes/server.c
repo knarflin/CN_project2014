@@ -1,76 +1,79 @@
-#include <unistd.h>
+#include <errno.h>
+#include <netdb.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <unistd.h>
+#include <pthread.h>
 #include <sys/socket.h>
-#include <fcntl.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <netdb.h>
+#include <netinet/in.h>
+
 #include "parse.h"
+#include "cqueue.h"
 #include "filter.h"
 #include "account.h"
-#include "cqueue.h"
-#include <pthread.h>
 
 #define ERR_EXIT(a) { perror(a); exit(1); }
 const char ImDebug[] = "***\n";
-const int bufSize = 1000;
-const int ThisIsASignUp = ('s' - '0');
-const int ThisIsAnAccount = ('a' - '0');
-const int ThisIsALogIn = ('l' - '0');
-const int ThisIsAUserName = ('u' - '0');
-const int ThisIsAPassword = ('p' - '0');
-const int ThisIsALogOut = -('l' - '0');
-const int ThisIsGoTONextStage = ('G' - '0');
-const int ThisIsAKnock = ('k' - '0');
+const int bufSize 		= 1000;
+const int ThisIsASignUp 	= ('s' - '0');
+const int ThisIsAnAccount 	= ('a' - '0');
+const int ThisIsALogIn 		= ('l' - '0');
+const int ThisIsAUserName 	= ('u' - '0');
+const int ThisIsAPassword 	= ('p' - '0');
+const int ThisIsALogOut 	= -('l' - '0');
+const int ThisIsGoTONextStage 	= ('G' - '0');
+const int ThisIsAKnock 		= ('k' - '0');
 
 typedef struct {
-    char hostname[512];  // server's hostname
-    unsigned short port;  // port to listen
-    int listen_fd;  // fd to wait for a new connection!!!
+    char 		hostname[512];  // server's hostname
+    unsigned short 	port;  		// port to listen
+    int 		listen_fd;  	// fd to wait for a new connection!!!
 } server;
 
 typedef struct {
-    char host[512];  // client's host
-    int conn_fd;  // fd to talk with client!!!
-    char buf[512];  // data sent by/to client
-    size_t buf_len;  // bytes used by buf
+    char	host[512];  	// client's host
+    int		conn_fd;  	// fd to talk with client!!!
+    char 	buf[512];  	// data sent by/to client
+    size_t 	buf_len;  	// bytes used by buf
     // you don't need to change this.
-	int account;
-    int wait_for_write;  // used by handle_read to know if the header is read or not.
+    int account;
+    int wait_for_write;  	// used by handle_read to know if the header is read or not.
 } request;
 
-server svr;  // server
-request* requestP = NULL;  // point to a list of requests!!!
-int maxfd;  //即server.c本身有的fd table大小 size of open file descriptor table, size of request list
+server svr;  			// server
+request* requestP = NULL; 	// point to a list of requests!!!
+int maxfd;  			//即server.c本身有的fd table大小 size of open file descriptor table, size of request list
 const int TableSize = 10;
-const char* accept_read_header = "ACCEPT_FROM_READ";
+const char* accept_read_header 	= "ACCEPT_FROM_READ";
 const char* accept_write_header = "ACCEPT_FROM_WRITE";
-const char* reject_header = "REJECT\n";
-const char* Balance = "Balance:";
-const char* OperationFail = "Operation fail.";
-const char* ThisOccupied = "This account is occupied.";
-const char* ThisAvailable = "This account is available.";
-const char SIGNUP[] = "signup";
+const char* reject_header 	= "REJECT\n";
+const char* Balance 		= "Balance:";
+const char* OperationFail 	= "Operation fail.";
+const char* ThisOccupied 	= "This account is occupied.";
+const char* ThisAvailable 	= "This account is available.";
+const char SIGNUP[] 		= "signup";
 
 // Forwards
 static void init_server(unsigned short port);
 static void init_request(request* reqP);
-static int handle_read(request* reqP);	//handle each write from each server
+static int  handle_read(request* reqP);	//handle each write from each server
 const char signupGood[] = "<signup-good>";
 const char signupBadU[] = "<signup-badU>";
-const char loginGood[] = "<login-good>";
-const char loginBadU[] = "<login-badU>";
-const char loginBadP[] = "<login-badP>";
+const char loginGood[] 	= "<login-good>";
+const char loginBadU[] 	= "<login-badU>";
+const char loginBadP[] 	= "<login-badP>";
 
 typedef struct thrdData
 {
 	int conn_fd;
 	int listen_fd;
-}TD;
-int dealwithLoginout(int conn_fd, char OurBuf[], char dst1[], int twoArguement, int continuityIndex, char acc[], int* islogin, int* istonextstage)
+} TD;
+
+int dealwithLoginout( 	int conn_fd, char OurBuf[], char dst1[], int twoArguement, 
+			int continuityIndex, char acc[], int* islogin, int* istonextstage)
 {
 	char justBuf[bufSize];
 	if(continuityIndex == ThisIsAUserName)
@@ -177,7 +180,7 @@ int dealwithLoginout(int conn_fd, char OurBuf[], char dst1[], int twoArguement, 
 	}
 	return -1126;
 }
-const char userOnline[] = "<user-online>";
+const char userOnline[]  = "<user-online>";
 const char userOffline[] = "<user-offline>";
 /*
 C: <knock>userName<\>
@@ -226,7 +229,7 @@ void* threadAnothSrv(void* arg)
 	int islogin = 0;
 	int twoArguement;
 	int istonextstage = 0;
-	
+
 	while(1)
 	{
 		// TODO: parse messages; given messages parsed, gonna act
@@ -256,11 +259,15 @@ void* threadAnothSrv(void* arg)
 					twoArguement = 1;
 				sprintf(OurBuf, dst[0], strlen(dst[0]));
 				printf("%d: islogin = %d; OurBuf = %s %d, dst[1] = %s!\n", pthread_self(), islogin, OurBuf, debug, dst[1]);
-				if(istonextstage == ThisIsGoTONextStage)
-					continuityIndex = KnockMtransFiletrans(thrdPtr->conn_fd, OurBuf, dest[1], twoArguement, continuityIndex, acc, &islogin, &istonextstage);
-				else	
-					continuityIndex = dealwithLoginout(thrdPtr->conn_fd, OurBuf, dest[1], twoArguement, continuityIndex, acc, &islogin, &istonextstage);
-				printf("%d: ousside, islogin = %d; ; OurBuf = %s %d, dst[1] = %s!\n", pthread_self(), islogin, OurBuf, debug, dst[1]);
+				if(istonextstage == ThisIsGoTONextStage){
+					continuityIndex = KnockMtransFiletrans(thrdPtr->conn_fd, OurBuf, dest[1], 
+								twoArguement, continuityIndex, acc, &islogin, &istonextstage);
+				}else{
+					continuityIndex = dealwithLoginout( thrdPtr->conn_fd, OurBuf, dest[1], 
+								twoArguement, continuityIndex, acc, &islogin, &istonextstage);
+				}
+				printf("%d: ousside, islogin = %d; ; OurBuf = %s %d, dst[1] = %s!\n",
+								pthread_self(), islogin, OurBuf, debug, dst[1]);
 				//WhatShouldBeThis = continuityIndex;
 			}
 			else
@@ -420,5 +427,3 @@ static void init_server(unsigned short port) {
         ERR_EXIT("listen");
     }
 }
-
-
