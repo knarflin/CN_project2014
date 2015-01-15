@@ -4,6 +4,7 @@
 #include"filter.h"
 #include"account.h"
 #include"cqueue.h"
+#include"msg_history.h"
 
 //---------------------------- parse_test1 ----------------------------
 void parse_test1(){
@@ -85,12 +86,35 @@ void account_test(){
 	else if(i==2) printf("Username not exist!\n");
 	printf("\n");
 
+		// test if Bob is online
+		if(is_online("Bob"))
+			printf("Bob is online!\n\n");
+		else
+			printf("Bob is not online...\n\n");
+
+	// login account "Bob"
 	i=authenticate("Bob","crispy");
 	printf("Logging in account \"Bob\"...\n");
 	if(i==0) printf("Correct password!\n");
 	else if(i==1) printf("Wrong password!\n");
 	else if(i==2) printf("Username not exist!\n");
 	printf("\n");
+
+		// test if Bob is online
+		if(is_online("Bob"))
+			printf("Bob is online!\n\n");
+		else
+			printf("Bob is not online!\n\n");
+
+	// logout account "Bob"
+	printf("Logging out account \"Bob\"...\n");
+	logout_account("Bob");
+
+		// test if Bob is online
+		if(is_online("Bob"))
+			printf("Bob is online!\n\n");
+		else
+			printf("Bob is not online!\n\n");
 
 	i=authenticate("Cathy","sweety");
 	printf("Logging in account \"Cathy\"...\n");
@@ -114,9 +138,9 @@ void jobqueue_test(){
 	job_assign(&jb[2],"Cathy",'m',0,NULL,"Oh!");
 	job_assign(&jb[3],"Derrick",'f',0,"angry_bird.exe","Ah?");
 
-	// initialize job queues
+	// initialize accounts
 	for(i=0;i<=2;i++)
-		queue_init(&accountinfo[i].job_queue);
+		account_init(&accountinfo[i]);
 
 	// assign each job to some account
 	enqueue(&accountinfo[0].job_queue,&jb[0]);
@@ -149,12 +173,15 @@ void jobqueue_test(){
 		printf("Job queue is empty!\n");
 };
 
+void msgHistory_test(){
+}
+
 int main()
 {
 	//parse_test1();
 	//parse_test2();
 	//filter_test();
-	//account_test();
-	jobqueue_test(); // replace it with the function you want to test
+	account_test();
+	//jobqueue_test(); // replace it with the function you want to test
 	return 0;
 }
