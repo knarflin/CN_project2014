@@ -14,12 +14,6 @@ struct cqueue{
 	struct job* jobarray[MAX_QUEUE_SIZE];
 };
 
-// this function should be called once a cqueue is created
-void queue_init(struct cqueue* cq){
-	cq->head=0;
-	cq->tail=0;
-}
-
 int enqueue(struct cqueue* cq,struct job* elem){
 	if(cq->head==(cq->tail+1)%MAX_QUEUE_SIZE)
 		return -1; // queue is full
@@ -28,6 +22,7 @@ int enqueue(struct cqueue* cq,struct job* elem){
 	return 0;
 }
 
+// return -1 for empty queue, 0 for successful
 int dequeue(struct cqueue* cq,struct job** elem){
 	if(cq->head==cq->tail)
 		return -1;
