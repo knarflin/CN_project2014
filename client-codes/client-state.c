@@ -13,6 +13,24 @@
 #include "client-state.h"
 #include "client-parse.h"
 
+//inter-thread communication, between s_online_general() and s_online_recv()
+static struct it_signal* _itsig_head = NULL;
+static struct it_signal* _itsig_tail = NULL;
+static pthread_mutex_t _itsig_lock;
+
+/* three offline states */
+int s_offline_general();
+int s_offline_login();
+int s_offline_signup();
+
+/* three online states */
+int s_online_general();
+int s_online_recv();
+int s_online_ftp();
+int s_online_msg();
+int s_online_end();
+
+
 
 int s_offline_general( int clie_sockfd ){
 	char reply = 0;
@@ -57,40 +75,26 @@ int s_offline_login( int clie_sockfd ){
 
 	printf( "Enter your username:\n" );
 	scanf( "%s", username);
-	
-	sprintf( w_buf, "<login>" "<username>%s<\\>", username );
-	if( send( clie_sockfd, w_buf, strlen(w_buf), 0) < 0 ){
-		fprintf( stderr, "Fail at send(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
-		return -1;
-	}
-	
-	if( recv( clie_sockfd, r_buf, strlen("<login-U-OK>"), MSG_WAITALL ) != strlen("<login-U-OK>") ){
-		fprintf( stderr, "Fail at recv(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
-		return -1;
-	}else if( strcasecmp( r_buf, "<login-FAIL>" ) == 0 ){
-		printf( "Username not exist\n" );
-		return 0;
-	}else if( strcasecmp( r_buf, "<login-U-OK>" ) != 0 ){
-		fprintf( stderr, "Bad reply from server, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
-		return -1;
-	}
-	
 	printf( "Enter your password:\n" );
 	scanf( "%s", password );
+	
+	sprintf( w_buf, "<login>" "<username>%s<\\>" "<password>%s<\\>", username, password );
 
-	sprintf( w_buf, "<password>%s<\\>", password );
 	if( send( clie_sockfd, w_buf, strlen(w_buf), 0) < 0 ){
 		fprintf( stderr, "Fail at send(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		return -1;
 	}
-
-	if( recv( clie_sockfd, r_buf, strlen("<login-P-OK>"), MSG_WAITALL ) != strlen("<login-P-OK>") ){
+	
+	if( recv( clie_sockfd, r_buf, strlen("<login-good>"), MSG_WAITALL ) != strlen("<login-good>") ){
 		fprintf( stderr, "Fail at recv(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		return -1;
-	}else if( strcasecmp( r_buf, "<login-FAIL>" ) == 0 ){
+	}else if( strcasecmp( r_buf, "<login-badU>" ) == 0 ){
+		printf( "Username not exist\n" );
+		return 0;
+	}else if( strcasecmp( r_buf, "<login-badP>" ) == 0 ){
 		printf( "Wrong password\n" );
 		return 0;
-	}else if( strcasecmp( r_buf, "<login-P-OK>" ) != 0 ){
+	}else if( strcasecmp( r_buf, "<login-good>" ) != 0 ){
 		fprintf( stderr, "Bad reply from server, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		return -1;
 	}
@@ -107,37 +111,21 @@ int s_offline_signup( int clie_sockfd ){
 
 	printf( "New username:\n" );
 	scanf( "%s", username);
-	
-	sprintf( w_buf, "<signup>" "<username>%s<\\>", username );
-	if( send( clie_sockfd, w_buf, strlen(w_buf), 0) < 0 ){
-		fprintf( stderr, "Fail at send(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
-		return -1;
-	}
-	
-	if( recv( clie_sockfd, r_buf, strlen("<signup-U-OK>"), MSG_WAITALL ) != strlen("<signup-U-OK>") ){
-		fprintf( stderr, "Fail at recv(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
-		return -1;
-	}else if( strcasecmp( r_buf, "<signup-FAIL>" ) == 0 ){
-		printf( "Username alrealy exists\n" );
-		return 0;
-	}else if( strcasecmp( r_buf, "<signup-U-OK>" ) != 0 ){
-		fprintf( stderr, "Bad reply from server, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
-		return -1;
-	}
-	
 	printf( "New password:\n" );
 	scanf( "%s", password );
-
-	sprintf( w_buf, "<password>%s<\\>", password );
+	
+	sprintf( w_buf, "<signup>" "<username>%s<\\>" "<password>%s<\\>", username, password );
 	if( send( clie_sockfd, w_buf, strlen(w_buf), 0) < 0 ){
 		fprintf( stderr, "Fail at send(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		return -1;
 	}
-
-	if( recv( clie_sockfd, r_buf, strlen("<signup-P-OK>"), MSG_WAITALL ) != strlen("<signup-P-OK>") ){
+	
+	if( recv( clie_sockfd, r_buf, strlen("<signup-good>"), MSG_WAITALL ) != strlen("<signup-good>") ){
 		fprintf( stderr, "Fail at recv(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		return -1;
-	}else if( strcasecmp( r_buf, "<signup-P-OK>" ) == 0 ){
+	}else if( strcasecmp( r_buf, "<signup-badU>" ) == 0 ){
+		printf( "Username alrealy exists\n" );
+	}else if( strcasecmp( r_buf, "<signup-good>" ) == 0 ){
 		printf( "Sign up successful\n" );
 	}else{
 		fprintf( stderr, "Bad reply from server, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
@@ -147,7 +135,6 @@ int s_offline_signup( int clie_sockfd ){
 	return 0;
 };
 
-
 int s_online_general( int clie_sockfd ){
 	
 	pthread_t recv_tid; //create a thread for recieving
@@ -155,8 +142,10 @@ int s_online_general( int clie_sockfd ){
 	int logout_flag = 0;
 	char reply;
 	
-	//TODO mutex_init
-
+	//init _itsig mutex
+	pthread_mutex_init( &_itsig_lock, NULL );
+	
+	//Create thread for recieving
 	err = pthread_create( &recv_tid, NULL, &s_online_recv, &clie_sockfd );
 	if( err != 0 ){
 		errno = (err == errno)? errno: err;
@@ -164,6 +153,7 @@ int s_online_general( int clie_sockfd ){
 		return -1;
 	}
 
+	//Ask user and provide service through function call.
 	while( !logout_flag ){
 		if( reply != ' ' && reply != '\n' ){
 			printf( "What do you want to do? (F)File Transfer, (M)Message Transfer (L)Log out\n" );
@@ -173,14 +163,17 @@ int s_online_general( int clie_sockfd ){
 		switch( reply ){
 			case 'F':
 			case 'f':
+				//file transfer
 				if( s_online_ftp( clie_sockfd ) < 0 ){ return -1; }
 				break;
 			case 'M':
 			case 'm':
+				//message sending
 				if( s_online_msg( clie_sockfd ) < 0 ){ return -1; }
 				break;
 			case 'L':
 			case 'l':
+				//log out
 				if( s_online_end( clie_sockfd ) < 0 ){ return -1; }
 				logout_flag = 1;
 				break;
@@ -193,6 +186,7 @@ int s_online_general( int clie_sockfd ){
 		}
 	}
 	
+	//Wait for recieving-thread to terminate
 	int retval;
 	err = pthread_join( recv_tid, (void **)&retval ); 
 	if( err != 0 ){
@@ -201,16 +195,12 @@ int s_online_general( int clie_sockfd ){
 		return -1;
 	}else if( retval != 0 ){
 		fprintf( stderr, "Bad return form thread, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) ); //debug point
-		//unknown error, only recv_thread knows
 		return -1;
 	}
 
 	return 0;
 }
 
-
-static struct it_signal* _itsig_head = NULL;
-static struct it_signal* _itsig_tail = NULL;
 
 int s_online_recv( void* clie_sockfd_ptr ){
 	int clie_sockfd = *(int *)clie_sockfd_ptr;
@@ -241,12 +231,27 @@ int s_online_recv( void* clie_sockfd_ptr ){
 				wf_list = write_file( wf_list, filename, datagram_cnt, dest[1] );
 				print_wf( wf_list ); //debug point
 			}else if( strcasecmp( dest[0], "logout-confirmed" ) == 0 ){
-				//_itsig_enqueue( &_itsig_head, &_itsig_tail, IT_SIGNAL_LOGOUT_CONFIRMED );
 				logout_flag = 1;
 			}else if( strcasecmp( dest[0], "user-online" ) == 0 ){
+				if( pthread_mutex_lock( &_itsig_lock ) != 0 ){
+					fprintf( stderr, "Fail locking, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+					return -1;
+				}
 				_itsig_enqueue( &_itsig_head, &_itsig_tail, IT_SIGNAL_DSTUSER_ONLINE );
+				if( pthread_mutex_unlock( &_itsig_lock ) != 0 ){
+					fprintf( stderr, "Fail unlocking, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+					return -1;
+				}
 			}else if( strcasecmp( dest[0], "user-offline" ) == 0 ){
+				if( pthread_mutex_lock( &_itsig_lock ) != 0 ){
+					fprintf( stderr, "Fail locking, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+					return -1;
+				}
 				_itsig_enqueue( &_itsig_head, &_itsig_tail, IT_SIGNAL_DSTUSER_OFFLINE );
+				if( pthread_mutex_unlock( &_itsig_lock ) != 0 ){
+					fprintf( stderr, "Fail unlocking, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+					return -1;
+				}
 			}else if( strcasecmp( dest[0], "name" ) == 0 ){
 				sprintf( src_usr, "%s", dest[1] );
 			}else if( strcasecmp( dest[0], "message") == 0 ){
@@ -273,28 +278,81 @@ int s_online_end( int clie_sockfd ){
 int s_online_ftp( int clie_sockfd ){
 	printf( "Enter s_online_ftp()\n" );	//debug point
 	//TODO
+	//init a struct read_file list...
 	return 0;
 }
 
 int s_online_msg( int clie_sockfd ){
-	printf( "Enter s_online_msg()\n" );	//debug point
-	/*TODO
-	char w_buf[ DEAULT_BUFFER_SIZE ] = {0};
 
-	printf( "Who do you want to send\n" );
-	fscanf( stdin, "%s", w_buf );
-
+	int  tmp_itsig 	= IT_SIGNAL_UNKNOWN;
+	int  input_len	= 0;
+	char reply 	= ' ';
+	char w_buf	[ BUFFER_SIZE 		] 	= {0};
+	char input	[ MESSAGE_LIMIT_LEN+1	] 	= {0};
+	char dst_usr	[ USERNAME_LIMIT_LEN 	] 	= {0};
+	
+	//Start knocking.
+	printf( "Who do you want to send? (We will check if he/she is online)\n" );
+	scanf( "%s", dst_usr );
+	sprintf( w_buf, "<knock>%s<\\>", dst_usr );
 	if( send( clie_sockfd, w_buf, strlen(w_buf), 0) <= 0 ){
 		fprintf( stderr, "Fail to send dst_usr, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		return -1;
 	}
-
-	if( recv( clie_sockfd, r_buf, sizeof(r_buf), 0 ) <= 0 ){
-		fprintf( stderr, "Fail at recv(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
-		return -1;
+	
+	//Take _itsig from recieving-thread to check friend is online or not.
+	while( tmp_itsig == IT_SIGNAL_UNKNOWN ){
+		pthread_mutex_lock( &_itsig_lock );
+		if( _itsig_head != NULL){
+			tmp_itsig = _itsig_head -> value;
+			_itsig_dequeue( &_itsig_head, &_itsig_tail ); //dequeue() not tested, don't know if there are bugs or not!!
+		}
+		pthread_mutex_unlock( &_itsig_lock );
 	}
 
-	printf( "Client recieved msg:[%s]\n", r_buf );
-	*/
+	//Knocking ends. Show friend's online status.
+	switch( tmp_itsig ){
+		case IT_SIGNAL_DSTUSER_OFFLINE	:
+			printf( "Your friend is currently offline.\n" );
+			break;
+		case IT_SIGNAL_DSTUSER_ONLINE	:
+			printf( "Your friend is currently online.\n" );
+			break;
+		default:
+			fprintf( stderr, "Invalid tmp_itsig '%d', %s, %d. ERROR_MSG: %s\n", tmp_itsig, __FILE__, __LINE__, strerror(errno));
+			return -1;
+	}
+
+	//Check if user want to send msg. Return if not.
+	printf( "Send msg or not? (Y/N)\n" );
+	while(1){
+		reply = fgetc( stdin );
+		if( reply == ' ' || reply == '\n' ){
+			continue;
+		}else if( reply == 'N' || reply == 'n' ) {
+			return 0;
+		}else if( reply == 'Y' || reply == 'y' ){
+			printf( "Please type the message: (Terminate when EOF is encountered.)\n" );
+			break;
+		}else{
+			fprintf( stderr, "Invalid reply, %s, %d. ERROR_MSG: %s\n", reply, __FILE__, __LINE__, strerror(errno));
+			return 0;
+		}
+	}
+		
+	//Sending msg (Press EOF to stop sending)
+	while( fgets( input, sizeof(input), stdin ) != NULL ){
+		input_len = strlen(input);
+		if(( input_len == 0 ) || ( input_len == 1 && input[0] == '\n')){ continue; }
+		input[ input_len-1 ] = '\0'; //replace '\n' with '\0'
+		sprintf( w_buf, "<username>%s<\\><message>%s<\\>", dst_usr, input );
+		if( send( clie_sockfd, w_buf, strlen(w_buf), 0) <= 0 ){
+			fprintf( stderr, "Fail to send dst_usr, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+			return -1;
+		}
+	}
+	
+	//Send ends.
+	fprintf( stderr, "Fail at getline() , %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) ); //debug point
 	return 0;
 }
