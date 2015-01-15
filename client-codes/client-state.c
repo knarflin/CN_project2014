@@ -4,11 +4,10 @@
 #include <strings.h>
 #include <errno.h>
 #include <pthread.h>
-
 #include <unistd.h>
-
 #include <sys/types.h>
 #include <sys/socket.h>
+
 #include "client-main.h"
 #include "client-state.h"
 #include "client-parse.h"
@@ -25,6 +24,7 @@ int s_offline_signup();
 
 /* three online states */
 int s_online_general();
+int s_online_knock();
 int s_online_recv();
 int s_online_ftp();
 int s_online_msg();
@@ -217,7 +217,7 @@ int s_online_recv( void* clie_sockfd_ptr ){
 	char* pos = r_buf;
 
 	char  src_usr[ USERNAME_LIMIT_LEN ] = {0};
-	struct wfile* wf_list = NULL;
+	struct file* wf_list = NULL;
 	int logout_flag = 0;
 
 	while( !logout_flag ){
@@ -229,7 +229,7 @@ int s_online_recv( void* clie_sockfd_ptr ){
 
 			if( isfiledata ){
 				wf_list = write_file( wf_list, filename, datagram_cnt, dest[1] );
-				print_wf( wf_list ); //debug point
+				print_fl( wf_list ); //debug point
 			}else if( strcasecmp( dest[0], "logout-confirmed" ) == 0 ){
 				logout_flag = 1;
 			}else if( strcasecmp( dest[0], "user-online" ) == 0 ){
@@ -276,24 +276,76 @@ int s_online_end( int clie_sockfd ){
 };
 
 int s_online_ftp( int clie_sockfd ){
-	printf( "Enter s_online_ftp()\n" );	//debug point
-	//TODO
-	//init a struct read_file list...
+
+	int  file_count = 0;
+	int  read_len	= 0;
+	int  i;
+	char reply 	= ' ';
+	char r_buf	[ BUFFER_SIZE		]	= {0};
+	char w_buf	[ BUFFER_SIZE 		] 	= {0};
+	char filepath	[ FILENAME_LIMIT_LEN	]	= {0};
+	char dst_usr	[ USERNAME_LIMIT_LEN 	] 	= {0};
+	struct file* rf_list = NULL;
+	struct file* rf_ptr  = NULL; //for traversing
+	struct file* rf_tmp  = NULL; //for freeing
+	
+	//Start knocking.
+	printf( "Who do you want the files be transfered to? (We will check if he/she is online)\n" );
+	scanf( "%s", dst_usr );
+	if( s_online_knock( clie_sockfd, dst_usr ) == -1 ){
+		return -1;
+	}
+
+	printf( "How many files do you want to send?\n" );
+	scanf( "%d", &file_count );
+	for( i=0; i<file_count; i++ ){
+		printf( "Enter the filename under cwd or absolute path of file #%d : ", i ); //absolute path not yet supported, pathtoname()
+		scanf( "%s", filepath );
+		rf_list = insert_fl( rf_list, filepath );
+	}
+	
+	printf( "Transfering files to %s ...\n",  dst_usr );
+
+	while( rf_list != NULL ){
+		for( rf_ptr = rf_list; rf_ptr != NULL; ){
+			read_len = read( rf_ptr->fd, r_buf, FILESEG_LIMIT_LEN );
+			if( read_len < 0 ){
+				//read() error
+				fprintf( stderr, "Fail at read(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+				return -1;
+			}else if( read_len == 0 ){
+				//EOF
+				sprintf( w_buf, "<username>%s<\\>" "<filedata,%s,%d><\\>", dst_usr, rf_ptr->filename, 0 );
+				if( send( clie_sockfd, w_buf, strlen(w_buf), 0 ) <= 0 ){
+					fprintf( stderr, "Fail transfering, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+				}
+				rf_tmp = rf_ptr;
+				rf_ptr = rf_ptr->next;
+				printf( "Complete transmition of file '%s'\n", rf_tmp->filepath );
+				rf_list = remove_fl( rf_list, rf_tmp->filepath );
+			}else{
+				//not EOF
+				sprintf( w_buf, "<username>%s<\\>" "<filedata,%s,%d>%s<\\>", 
+						dst_usr, rf_ptr->filename, rf_ptr->datagram_cnt, r_buf );
+				if( send( clie_sockfd, w_buf, strlen(w_buf), 0 ) <= 0 ){
+					fprintf( stderr, "Fail transfering, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+				}
+				rf_ptr->datagram_cnt ++;
+				rf_ptr = rf_ptr->next;
+			}
+		}
+	}
+	printf( "ALL files tranfered.\n" );
+	//TODO debug!!
 	return 0;
 }
 
-int s_online_msg( int clie_sockfd ){
+int s_online_knock( int clie_sockfd, char* dst_usr ){
 
 	int  tmp_itsig 	= IT_SIGNAL_UNKNOWN;
-	int  input_len	= 0;
-	char reply 	= ' ';
 	char w_buf	[ BUFFER_SIZE 		] 	= {0};
-	char input	[ MESSAGE_LIMIT_LEN+1	] 	= {0};
-	char dst_usr	[ USERNAME_LIMIT_LEN 	] 	= {0};
 	
-	//Start knocking.
-	printf( "Who do you want to send? (We will check if he/she is online)\n" );
-	scanf( "%s", dst_usr );
+	//Send knocking.
 	sprintf( w_buf, "<knock>%s<\\>", dst_usr );
 	if( send( clie_sockfd, w_buf, strlen(w_buf), 0) <= 0 ){
 		fprintf( stderr, "Fail to send dst_usr, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
@@ -301,16 +353,17 @@ int s_online_msg( int clie_sockfd ){
 	}
 	
 	//Take _itsig from recieving-thread to check friend is online or not.
+	//Busy looping!! Ineffective!!!
 	while( tmp_itsig == IT_SIGNAL_UNKNOWN ){
 		pthread_mutex_lock( &_itsig_lock );
 		if( _itsig_head != NULL){
 			tmp_itsig = _itsig_head -> value;
-			_itsig_dequeue( &_itsig_head, &_itsig_tail ); //dequeue() not tested, don't know if there are bugs or not!!
+			_itsig_dequeue( &_itsig_head, &_itsig_tail );
 		}
 		pthread_mutex_unlock( &_itsig_lock );
 	}
 
-	//Knocking ends. Show friend's online status.
+	//Show friend's online status.
 	switch( tmp_itsig ){
 		case IT_SIGNAL_DSTUSER_OFFLINE	:
 			printf( "Your friend is currently offline.\n" );
@@ -322,7 +375,24 @@ int s_online_msg( int clie_sockfd ){
 			fprintf( stderr, "Invalid tmp_itsig '%d', %s, %d. ERROR_MSG: %s\n", tmp_itsig, __FILE__, __LINE__, strerror(errno));
 			return -1;
 	}
+	return 0;
+}
 
+int s_online_msg( int clie_sockfd ){
+
+	int  input_len	= 0;
+	char reply 	= ' ';
+	char w_buf	[ BUFFER_SIZE 		] 	= {0};
+	char input	[ MESSAGE_LIMIT_LEN+1	] 	= {0};
+	char dst_usr	[ USERNAME_LIMIT_LEN 	] 	= {0};
+	
+	//Start knocking.
+	printf( "Who do you want to send? (We will check if he/she is online)\n" );
+	scanf( "%s", dst_usr );
+	if( s_online_knock( clie_sockfd, dst_usr ) == -1 ){
+		return -1;
+	}
+	
 	//Check if user want to send msg. Return if not.
 	printf( "Send msg or not? (Y/N)\n" );
 	while(1){
@@ -335,7 +405,7 @@ int s_online_msg( int clie_sockfd ){
 			printf( "Please type the message: (Terminate when EOF is encountered.)\n" );
 			break;
 		}else{
-			fprintf( stderr, "Invalid reply, %s, %d. ERROR_MSG: %s\n", reply, __FILE__, __LINE__, strerror(errno));
+			fprintf( stderr, "Invalid reply, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno));
 			return 0;
 		}
 	}
