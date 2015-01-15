@@ -7,11 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-
+#define MESSAGE_LIMIT_LEN	1000
 #define FILESEG_LIMIT_LEN	1000
 #define FILENAME_LIMIT_LEN	256
 #define TAG_LIMIT_LEN		20
-#define MAX_WRITE_FD_COUNT	100
 
 
 static int adjust_buffer( char* buffer, int buf_size, char** offset ){
@@ -92,7 +91,6 @@ static struct wfile* write_file( struct wfile* wf_list, char* filename, int data
 #define IT_SIGNAL_UNKNOWN		0
 #define IT_SIGNAL_DSTUSER_OFFLINE	1
 #define IT_SIGNAL_DSTUSER_ONLINE	2
-//#define IT_SIGNAL_LOGOUT_CONFIRMED	3 //debug point
 
 struct it_signal { //inter-thread signal
 	int value;
@@ -113,9 +111,6 @@ static int _itsig_printqueue( struct it_signal* ptr ){
 		case IT_SIGNAL_DSTUSER_ONLINE	:
 			printf( "online" );
 			break;
-		case IT_SIGNAL_LOGOUT_CONFIRMED	:
-			printf( "logout-confirmed" );
-			break;
 		default:
 			break;
 	}
@@ -126,7 +121,6 @@ static int _itsig_enqueue( struct it_signal** head, struct it_signal** tail, int
 	struct it_signal* tmp = (struct it_signal *)malloc( sizeof(struct it_signal) );
 	tmp -> value = signal;
 	tmp -> next = NULL;
-	//TODO mutex lock
 	if( *tail == NULL && *head == NULL ){
 		*tail = tmp;
 		*head = tmp;
@@ -138,23 +132,21 @@ static int _itsig_enqueue( struct it_signal** head, struct it_signal** tail, int
 		return -1;
 	}
 	_itsig_printqueue( *head ); //debug point
-	//TODO mutex unlock
 	return 0;
 }
 
-static int _itsig_dequeue( struct it_signal** head, struct it_signal* tail, int siganl ){
+static int _itsig_dequeue( struct it_signal** head, struct it_signal** tail ){
 	if( *head == NULL ){
 		fprintf( stderr, "Fail at itsig_dequeue(), queue already empty\n" );
 		return -1;
 	}
-	
-	//TODO mutex lock
 	struct it_signal* tmp = *head;
 	*head = (*head) -> next;
 	free( tmp );
+	if( *head == NULL ){
+		*tail = NULL;
+	}
 	_itsig_printqueue( *head ); //debug point
-	//TODO mutex unlock
-
 	return 0;
 }
 
