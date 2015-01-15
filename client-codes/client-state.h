@@ -6,11 +6,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include "client-main.h"
 
-#define MESSAGE_LIMIT_LEN	1000
-#define FILESEG_LIMIT_LEN	1000
-#define FILENAME_LIMIT_LEN	256
-#define TAG_LIMIT_LEN		20
 
 
 static int adjust_buffer( char* buffer, int buf_size, char** offset ){
@@ -24,29 +21,84 @@ static int adjust_buffer( char* buffer, int buf_size, char** offset ){
 	return valid_len;
 };
 
-static struct wfile {
-	int    fd;
-	char   filename[ FILENAME_LIMIT_LEN ];
-	struct wfile* next;
+static struct file {
+	int    	fd;
+	int	datagram_cnt;
+	char	filename[ FILENAME_LIMIT_LEN ];
+	char 	filepath[ FILENAME_LIMIT_LEN ];
+	struct 	file* next;
 };
 
-//debug point
-static int print_wf( struct wfile* ptr ){
+//debug function
+static int print_fl( struct file* ptr ){
 	printf(" -> ");
 	if( ptr == NULL ){
 		printf( "NULL\n" );
 		return 0;
 	}
 	printf( "(%d, %s)", ptr->fd, ptr->filename );
-	return print_wf( ptr->next );
+	return print_fl( ptr->next );
 }
 
-static struct wfile* write_file( struct wfile* wf_list, char* filename, int datagram_cnt, char* content ){
+/* ---Read files from local disk------------------------------------------------------------ */
+
+static const char* pathtoname( const char* filepath ){
+	//TODO
+	return filepath; 
+}
+
+static struct file* insert_fl( struct file* f_list, char* filepath ){
+
+	struct file* tmp;
+	if( f_list == NULL ){
+		tmp = (struct file *)malloc( sizeof(struct file *) );
+		tmp -> fd = open( filepath, O_RDONLY );
+		if( tmp->fd < 0 ){
+			fprintf( stderr, "Fail at open(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+			free( tmp );
+			return NULL;
+		}
+		sprintf( tmp -> filename, "%s", pathtoname(filepath) );
+		sprintf( tmp -> filepath, "%s", filepath );
+		tmp -> datagram_cnt = 1; //Start from 1, set to 0 if last segment encountered.
+		tmp -> next = NULL;
+		return tmp;
+	}
+
+	f_list -> next = insert_fl( f_list -> next, filepath );
+	return f_list;
+}
+
+static struct file* remove_fl( struct file* f_list, char* filepath ){
+	
+	struct file* tmp;
+	if( f_list == NULL ){ 
+		return NULL; 
+	}
+
+	if( strcmp( f_list -> filepath, filepath ) == 0 ){
+		if( close( f_list -> fd ) < 0 ){
+			fprintf( stderr, "Fail at close(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
+			return f_list; 
+		}
+		tmp = f_list;
+		f_list = f_list -> next;
+		free( tmp );
+		return f_list;
+	}
+
+	f_list -> next = remove_fl( f_list, filepath );
+	return f_list;
+}
+
+/* ---Write files to local disk------------------------------------------------------------- */
+
+static struct file* write_file( struct file* wf_list, char* filename, int datagram_cnt, char* content ){
 	printf( "Enter write_file()\n");
-	struct wfile* tmp;
+	struct file* tmp;
 
 	if( wf_list == NULL ){
-		tmp = (struct wfile *)malloc( sizeof(struct wfile) );
+		tmp = (struct file *)malloc( sizeof(struct file) );
 		tmp -> fd = open( filename , O_CREAT | O_WRONLY | O_TRUNC, 00644 );
 		if( tmp -> fd < 0 ){
 			fprintf( stderr, "Fail at open(), %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
@@ -160,6 +212,7 @@ int s_offline_signup();
 
 /* three online states */
 int s_online_general();
+int s_online_knock();
 int s_online_recv();
 int s_online_ftp();
 int s_online_msg();
