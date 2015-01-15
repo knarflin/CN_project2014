@@ -23,6 +23,10 @@ struct account{
 	struct cqueue job_queue;
 }accountinfo[MAX_ACCOUNT_CNT];
 
+void account_init(struct account* acc){
+
+}
+
 int create_account(char* username, char* password){
 	int i;
 	if(strlen(username)>USERNAME_LIMIT_LEN)
@@ -37,6 +41,9 @@ int create_account(char* username, char* password){
 	}
 	strcpy(accountinfo[accountcnt].username,username);
 	strcpy(accountinfo[accountcnt].password,password);
+	accountinfo[accountcnt].isOnline = 0;
+	accountinfo[accountcnt].job_queue.head = 0;
+	accountinfo[accountcnt].job_queue.tail = 0;
 	accountcnt++;
 	return 0; // created successfully
 }
@@ -64,12 +71,6 @@ void print_account(){ // just for debugging
 	}
 }
 
-void account_init(struct account* acc){
-	acc->job_queue.head = 0;
-	acc->job_queue.tail = 0;
-	acc->isOnline = 0;
-}
-
 void logout_account(char* username){
 	int i;
 	for(i=0;i<accountcnt;i++){
@@ -87,6 +88,39 @@ int is_online(char* username){
 		}
 	}
 	return -1;
+}
+
+// assign the attributes of a job
+// return value: 
+//		0: successful
+//		-1: queue is full
+//		-2: no such dst_usr
+int job_assign(char* dst_usr, char* _src_usr, char _jobtype, int _seg_count, char* _filename, char* _content){
+	int i;
+	struct job* jb = (struct job *)malloc( sizeof(struct job) );
+	assert(strlen(_src_usr)<=USERNAME_LIMIT_LEN);
+	strcpy(jb->src_usr,_src_usr);
+	jb->jobtype=_jobtype;
+	jb->seg_count=_seg_count;
+	jb->filename=_filename;
+	jb->content=_content;
+	for(i=0;i<accountcnt;i++){
+		if(strcmp(dst_usr,accountinfo[i].username)==0){
+			return enqueue(&accountinfo[i].job_queue,jb);
+		}
+	}
+	return -2;
+}
+
+// return 0 for successful, -1 for empty queue, -2 for no such user
+int job_get(char* name, struct job** jb){
+	int i;
+	for(i=0;i<accountcnt;i++){
+		if(strcmp(name,accountinfo[i].username)==0){
+			return dequeue(&accountinfo[i].job_queue,jb);
+		}
+	}
+	return -2;
 }
 
 #endif

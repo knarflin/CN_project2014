@@ -5,6 +5,7 @@
 
 #include<string.h>
 #include<assert.h>
+#include<stdlib.h>
 
 #ifndef USERNAME_LIMIT_LEN
 #define USERNAME_LIMIT_LEN	100
@@ -17,16 +18,6 @@ struct job {
 	char* filename;	// ¡°bgm.txt¡±
 	char* content;		// ¡°........¡± (no more than 1000)
 };
-
-// assign the attributes of a job
-void job_assign(struct job* jb, char* _src_usr, char _jobtype, int _seg_count, char* _filename, char* _content){
-	assert(strlen(_src_usr)<=USERNAME_LIMIT_LEN);
-	strcpy(jb->src_usr,_src_usr);
-	jb->jobtype=_jobtype;
-	jb->seg_count=_seg_count;
-	jb->filename=_filename;
-	jb->content=_content;
-}
 
 void print_job(struct job* jb){ // just for debugging
 	printf("src_usr: %s\n",jb->src_usr);

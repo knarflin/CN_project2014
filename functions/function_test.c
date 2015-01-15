@@ -129,48 +129,82 @@ void account_test(){
 // ---------------------------- jobqueue_test() ----------------------------
 void jobqueue_test(){
 	int i;
-	struct job jb[10]; // an array saving jobs
 	struct job* jptr;
 
+	create_account("Alice","lovely");
+	create_account("Bob","crispy");
+	create_account("Cathy","sweety");
+	create_account("Derrick","hungry");
+
 	// create jobs
-	job_assign(&jb[0],"Alice",'m',0,NULL,"Good night!");
-	job_assign(&jb[1],"Bob",'f',12,"autorun.exe","Hello!");
-	job_assign(&jb[2],"Cathy",'m',0,NULL,"Oh!");
-	job_assign(&jb[3],"Derrick",'f',0,"angry_bird.exe","Ah?");
+	// int job_assign(char* dst_usr, char* _src_usr, char _jobtype, int _seg_count, char* _filename, char* _content) in account.h
+	// return value:	0:successful	-1:queue is full	-2:no such dst_usr
 
-	// initialize accounts
-	for(i=0;i<=2;i++)
-		account_init(&accountinfo[i]);
+	// 1.1 Alice says to Bob, 'Good night!'
+	i=job_assign("Bob","Alice",'m',0,NULL,"Good night!");
+	if(i==0) printf("Successful!\n\n");
+	else if(i==-2) printf("No such destination user!\n\n");
 
-	// assign each job to some account
-	enqueue(&accountinfo[0].job_queue,&jb[0]);
-	enqueue(&accountinfo[0].job_queue,&jb[3]); // allocate job 3 to account 0
-	enqueue(&accountinfo[1].job_queue,&jb[1]);
-	enqueue(&accountinfo[2].job_queue,&jb[2]);
+	// 1.2 Bob sends autorun.ext to Obama
+	i=job_assign("Obama","Bob",'f',12,"autorun.exe","Hello!"); 
+	if(i==0) printf("Successful!\n\n");
+	else if(i==-2) printf("No such destination user!\n\n");
 
-	// print job queue of each account
+	 // 1.3 "Oh!", Cathy says to Bob.
+	job_assign("Bob","Cathy",'m',0,NULL,"Oh!");
+
+	 // 1.4 Derrick sends angry_bird.exe to Alice
+	job_assign("Alice","Derrick",'f',0,"angry_bird.exe","Ah?");
+
+
+	// 2. print job queue of each account
 	for(i=0;i<4;i++){
-		printf("----- Job queue of account #%d -----\n",i);
+		printf("----- Job queue of %s -----\n",accountinfo[i].username);
 		print_queue(&accountinfo[i].job_queue);
 		printf("\n");
 	}
 
-	// dequeue a job from job queue of account 1 
-	printf("---Dequeue a job from job queue of account 1---\n");
-	i=dequeue(&accountinfo[1].job_queue,&jptr); 
-	if(i==0)
+	
+	// 3. get (and dequeue) jobs
+	// int job_get(char* name, struct job* jb) in account.h
+	// return value:	0:successful	-1:empty queue	-2:no such dst_usr
+	 
+	// 3.1 Get a job from job queue of Alice
+	printf("---Get a job from job queue of Alice---\n");
+	i=job_get("Alice",&jptr); 
+	if(i==0){
 		print_job(jptr);
-	else if(i==-1)
-		printf("Job queue is empty!\n");
+		// the server should do the job now...
+		free(jptr); // after the job is done, free it
+	}
+	else if(i==-1) printf("Job queue is empty!\n");
+	else if(i==-2) printf("No such user!\n");
 	printf("\n");
 
-	// dequeue a job from job queue of account 1 again. This time, the queue is empty.
-	printf("---Dequeue a job from job queue of account 1 again---\n");
-	i=dequeue(&accountinfo[1].job_queue,&jptr); 
-	if(i==0)
+	// 3.2 Get a job from job queue of Alice again. This time, the job queue is empty.
+	printf("---Get a job from job queue of Alice again---\n");
+	i=job_get("Alice",&jptr); 
+	if(i==0){
 		print_job(jptr);
-	else if(i==-1)
-		printf("Job queue is empty!\n");
+		// the server should do the job now...
+		free(jptr);
+	}
+	else if(i==-1) printf("Job queue is empty!\n");
+	else if(i==-2) printf("No such user!\n");
+	printf("\n");
+
+	// 3.3 Get a job from job queue of Obama.
+	printf("---Get a job from job queue of Obama---\n");
+	i=job_get("Obama",&jptr); 
+	if(i==0){
+		print_job(jptr);
+		// the server should do the job now...
+		free(jptr);
+	}
+	else if(i==-1) printf("Job queue is empty!\n");
+	else if(i==-2) printf("No such user!\n");
+	printf("\n");
+
 };
 
 void msgHistory_test(){
@@ -181,7 +215,7 @@ int main()
 	//parse_test1();
 	//parse_test2();
 	//filter_test();
-	account_test();
-	//jobqueue_test(); // replace it with the function you want to test
+	//account_test();
+	jobqueue_test(); // replace it with the function you want to test
 	return 0;
 }
