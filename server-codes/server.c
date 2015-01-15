@@ -75,7 +75,14 @@ typedef struct thrdData
 int dealwithLoginout( 	int conn_fd, char OurBuf[], char dst1[], int twoArguement, 
 			int continuityIndex, char acc[], int* islogin, int* istonextstage)
 {
+	int i;
 	char justBuf[bufSize];
+	char dstbuf[bufSize];
+	for(i = 0;i<bufSize;i++)
+		dstbuf[i] = '\0';
+	for(i = 0;i<strlen(dst1);i++)
+		dstbuf[i] = dst1[i];
+	
 	if(continuityIndex == ThisIsAUserName)
 	{
 		if(twoArguement == 0 || OurBuf[0] != 'u')
@@ -85,7 +92,7 @@ int dealwithLoginout( 	int conn_fd, char OurBuf[], char dst1[], int twoArguement
 		}
 		else
 		{
-			sprintf(acc, "%s", dst1);
+			sprintf(acc, "%s", dstbuf);
 			printf("there's a username: %s\n", acc);
 			return ThisIsAPassword;
 		}
@@ -103,7 +110,7 @@ int dealwithLoginout( 	int conn_fd, char OurBuf[], char dst1[], int twoArguement
 			//TODO: validate
 			if(*islogin == 1)
 			{	
-				int i = authenticate(acc, dst1);
+				int i = authenticate(acc, dstbuf);
 				printf("Logging in account...\n");
 				if(i==0) 
 				{
@@ -130,8 +137,8 @@ int dealwithLoginout( 	int conn_fd, char OurBuf[], char dst1[], int twoArguement
 			}
 			else if(*islogin == 0)
 			{
-				printf("acc = %s; dst1 = %s\n", acc, dst1);
-				int i=create_account(acc, dst1);
+				int i=create_account(acc, dstbuf);
+				printf("acc = %s; dst1 = %s\n", acc, dstbuf);
 				printf("Creating account~~~\n");
 				if(i==0) 
 				{
@@ -182,10 +189,7 @@ int dealwithLoginout( 	int conn_fd, char OurBuf[], char dst1[], int twoArguement
 }
 const char userOnline[]  = "<user-online>";
 const char userOffline[] = "<user-offline>";
-/*
-C: <knock>userName<\>
-S: <user-online>, <user-offline>
-*/
+
 int KnockMtransFiletrans(int conn_fd, char OurBuf[], char* dst1, int twoArguement, int continuityIndex, char acc[], int* islogin, int *istonextstage)
 {
 	char justBuf[bufSize];
@@ -373,7 +377,8 @@ static void init_request(request* reqP) {
 // -1: client connection error
 int handle_read(request* reqP) {
     int r, errNum;
-    char buf[512];
+    char buf[512] = {0};
+	
     // Read in request from client
     r = read(reqP->conn_fd, buf, sizeof(buf));
 	//printf("buf inside handle_read = %s\n", buf);
@@ -381,21 +386,10 @@ int handle_read(request* reqP) {
 		errNum = -1;
     else if (r == 0)
 		errNum = 0;
-	/*char* p1 = strstr(buf, "\015\012");
-	be careful that in Windows, line ends with \015\012, Oh man, WTF is that!!!
-	if (p1 == NULL) {
-		p1 = strstr(buf, "\012");
-		//newline_len = 1;
-		if (p1 == NULL) {
-			ERR_EXIT("this really should not happen...");
-		}
-	}
-	size_t len = p1 - buf + 1;
-	memmove(reqP->buf, buf, len);
-	reqP->buf[len - 1] = '\0';
-	reqP->buf_len = len-1;*/
+	
 	else
 	{
+		memset(reqP->buf, 0, sizeof(reqP->buf)); //Warning!! unparsed strings in reqP's buf would be clear 
 		memmove(reqP->buf, buf, strlen(buf));
 		errNum = 1;
 	}
