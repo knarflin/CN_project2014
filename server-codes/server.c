@@ -23,11 +23,8 @@ const int ThisIsALogIn = ('l' - '0');
 const int ThisIsAUserName = ('u' - '0');
 const int ThisIsAPassword = ('p' - '0');
 const int ThisIsALogOut = -('l' - '0');
-//used for WriteAcc and ReadAcc
-typedef struct {
-    int fd;
-	int returnValue;
-} FdAndReturn;
+const int ThisIsGoTONextStage = ('G' - '0');
+const int ThisIsAKnock = ('k' - '0');
 
 typedef struct {
     char hostname[512];  // server's hostname
@@ -58,80 +55,35 @@ const char* ThisOccupied = "This account is occupied.";
 const char* ThisAvailable = "This account is available.";
 const char SIGNUP[] = "signup";
 
-
 // Forwards
 static void init_server(unsigned short port);
-// initailize a server, exit for error
-
 static void init_request(request* reqP);
-// initailize a request instance
+static int handle_read(request* reqP);	//handle each write from each server
+const char signupGood[] = "<signup-good>";
+const char signupBadU[] = "<signup-badU>";
+const char loginGood[] = "<login-good>";
+const char loginBadU[] = "<login-badU>";
+const char loginBadP[] = "<login-badP>";
 
-static int handle_read(request* reqP);
-// return 0: socket ended, request done.
-// return 1: success, message (without header) got this time is in reqP->buf with reqP->buf_len bytes. read more until got <= 0.
-// It's guaranteed that the header would be correctly set after the first read.
-// error code:
-// -1: client connection error
-// TODO: turn char #s to in #s
-
-int SetReadLK(int fd, int offset, int len)
-{
-	struct flock lock;
-	lock.l_type = F_RDLCK;
-	lock.l_whence = SEEK_SET;
-	lock.l_start = offset;
-	lock.l_len = len;
-	lock.l_pid = getpid();
-	
-	return(fcntl(fd, F_SETLK, &lock));
-}
-int SetWriteLK(int fd, int offset, int len)
-{
-	struct flock lock;
-	lock.l_type = F_WRLCK;
-	lock.l_whence = SEEK_SET;
-	lock.l_start = offset;
-	lock.l_len = len;
-	lock.l_pid = getpid();
-	
-	return(fcntl(fd, F_SETLK, &lock));
-}
 typedef struct thrdData
 {
 	int conn_fd;
 	int listen_fd;
 }TD;
-/*
-C:<login>
-C:<username>littleJohn<\>
-S:<login-U-OK>, <login-FAIL>
-C:<password>???<\>
-S:<login-P-OK>, <login-FAIL>
-C:<logout>
-S:<logout-confirmed>
-*/
-/*
-<signup>
-<username>Fridays<\>
-S: <signup-U-OK>, <signup-FAIL>
-<password>yamatata<\>
-S: <signup-P-OK>
-*/
-int dealwith(int conn_fd, char OurBuf[], char* dst1, int twoArguement, int continuityIndex, char acc[], int islogin)
+int dealwithLoginout(int conn_fd, char OurBuf[], char dst1[], int twoArguement, int continuityIndex, char acc[], int* islogin, int* istonextstage)
 {
-	//printf("dst0 = %s\n", OurBuf);
+	char justBuf[bufSize];
 	if(continuityIndex == ThisIsAUserName)
 	{
 		if(twoArguement == 0 || OurBuf[0] != 'u')
 		{
-			printf("Hey, U should do: <username> + enter\n");
-			return ThisIsAPassword;
+			printf("Hey, U should do: <username>userName + enter\n");
+			return 0;
 		}
 		else
 		{
-			printf("there's a username\n");
-			//TODO: change name
 			sprintf(acc, "%s", dst1);
+			printf("there's a username: %s\n", acc);
 			return ThisIsAPassword;
 		}
 	}
@@ -139,36 +91,58 @@ int dealwith(int conn_fd, char OurBuf[], char* dst1, int twoArguement, int conti
 	{
 		if(twoArguement == 0 || OurBuf[0] != 'p')
 		{
-			printf("Hey, U should do: <password> + enter\n");
+			printf("Hey, U should do: <password>userPassword + enter\n");
 			return 0;
 		}
 		else
 		{
 			printf("there's a password\n");
 			//TODO: validate
-			if(islogin == 1)
+			if(*islogin == 1)
 			{	
 				int i = authenticate(acc, dst1);
 				printf("Logging in account...\n");
 				if(i==0) 
+				{
 					printf("Correct password, Bravo!\n");
+					sprintf(justBuf, "%s", loginGood);
+					write(conn_fd, justBuf, strlen(justBuf));
+					*istonextstage = ThisIsGoTONextStage;
+				}
 				else if(i==1) 
+				{
 					printf("Wrong password!\n");
+					sprintf(justBuf, "%s", loginBadP);
+					write(conn_fd, justBuf, strlen(justBuf));
+				}
 				else if(i==2) 
+				{
 					printf("Username not exist!\n");
-				printf("\n");
-				islogin = 0;
+					sprintf(justBuf, "%s", loginBadU);
+					write(conn_fd, justBuf, strlen(justBuf));
+				}
+				
+				*islogin = 0;
 				return 0;
 			}
-			else if(islogin == 0)
+			else if(*islogin == 0)
 			{
+				printf("acc = %s; dst1 = %s\n", acc, dst1);
 				int i=create_account(acc, dst1);
 				printf("Creating account~~~\n");
 				if(i==0) 
+				{
 					printf("Successful!\n");
+					sprintf(justBuf, "%s", signupGood);
+					write(conn_fd, justBuf, strlen(justBuf));
+				}
 				else if(i==1) 
-					printf("Username already exists!\n");
-				printf("\n");
+				{
+					printf("%u: Username already exists!\n", pthread_self());
+					sprintf(justBuf, "%s", signupBadU);
+					write(conn_fd, justBuf, strlen(justBuf));
+				}
+				
 				return 0;
 			}
 		}
@@ -178,62 +152,97 @@ int dealwith(int conn_fd, char OurBuf[], char* dst1, int twoArguement, int conti
 		if(OurBuf[0] == 'l' && OurBuf[3] == 'i')
 		{
 			printf("there's a login\n");
-			islogin = 1;
+			*islogin = 1;
+			printf("in fun: *islogin = %d\n", *islogin);
 			return ThisIsAUserName;
 		}
 		else if(OurBuf[0] == 's')
 		{
 			printf("there's a signup\n");
-			islogin = 0;
+			*islogin = 0;
 			return ThisIsAUserName;
 		}
 		else if(OurBuf[0] == 'l' && OurBuf[3] == 'o')
 		{
-			printf("there's an logout\n");
-			islogin = 1126;
+			printf("there's an logout; but this version's thread still operates...\n");
+			*islogin = 1126;
 			return 0;
 		}
 		else
 		{
 			printf("for this version of server, there's nothing i can do\n");
-			islogin = 1126;
+			*islogin = 1126;
 			return 0;
 		}
 	}
 	return -1126;
 }
+const char userOnline[] = "<user-online>";
+const char userOffline[] = "<user-offline>";
+/*
+C: <knock>userName<\>
+S: <user-online>, <user-offline>
+*/
+int KnockMtransFiletrans(int conn_fd, char OurBuf[], char* dst1, int twoArguement, int continuityIndex, char acc[], int* islogin, int *istonextstage)
+{
+	char justBuf[bufSize];
+	
+	if(continuityIndex == 0)//???
+	{
+		if(twoArguement == 0 || OurBuf[0] != 'k')
+		{
+			printf("Hey, U should do: <knock>userName + enter\n");
+			return ThisIsAKnock;
+		}
+		else
+		{
+			printf("there's a knock, dont be afraid~\n");
+			//TODO: change name
+			if(is_online(dst1))
+			{
+				sprintf(justBuf, "%s", userOnline);
+				write(conn_fd, justBuf, strlen(justBuf));
+				printf("%s is online!\n", dst1);
+			}
+			else
+			{
+				sprintf(justBuf, "%s", userOffline);
+				write(conn_fd, justBuf, strlen(justBuf));
+				printf("%s is NOT online...\n", dst1);
+			}
+			return 0;
+		}
+	}
+	else
+		return -1126;
+}
 void* threadAnothSrv(void* arg)
 {
 	char OurBuf[bufSize];
+	char acc[] = "thisisnotrue";
 	TD *thrdPtr = arg;
 	fd_set readset;
 	int continuityIndex = 0;
+	int islogin = 0;
+	int twoArguement;
+	int istonextstage = 0;
+	
 	while(1)
 	{
-		FD_ZERO(&readset);
-		FD_SET(thrdPtr->conn_fd, &readset);
-		
-		select(thrdPtr->conn_fd + 1, &readset, NULL, NULL, NULL);
-		if(FD_ISSET(thrdPtr->conn_fd, &readset) <= 0)
-		{
-			printf("err cant get message\n");
-			exit(1);
-		}
-		
 		// TODO: parse messages; given messages parsed, gonna act
+		int debug = 0;
 		int ret = handle_read(&requestP[thrdPtr->conn_fd]); 
+		//printf("thrd: %u, %d, ret = %d\n",tid ,thrdPtr->conn_fd, ret);
 		if (ret < 0) {
 			fprintf(stderr, "bad request from %s\n", requestP[thrdPtr->conn_fd].host);
 			continue;
 		}
-		
-		char* pos = requestP[thrdPtr->conn_fd].buf;
+		char* pos;
 		char dst[2][32];
 		char* dest[2]={dst[0],dst[1]};
-		char acc[] = "thisisnotrue";
-		int twoArguement;
-		int islogin = 0;
-		//int WhatShouldBeThis = 0;
+		pos = requestP[thrdPtr->conn_fd].buf;
+		
+		//TODO: do sth corresponding to client's input
 		while(1)
 		{
 			//printf("msg = %s\n", pos);
@@ -246,16 +255,23 @@ void* threadAnothSrv(void* arg)
 				else
 					twoArguement = 1;
 				sprintf(OurBuf, dst[0], strlen(dst[0]));
-				continuityIndex = dealwith(thrdPtr->conn_fd, OurBuf, dest[1], twoArguement, continuityIndex, acc, islogin);
+				printf("%d: islogin = %d; OurBuf = %s %d, dst[1] = %s!\n", pthread_self(), islogin, OurBuf, debug, dst[1]);
+				if(istonextstage == ThisIsGoTONextStage)
+					continuityIndex = KnockMtransFiletrans(thrdPtr->conn_fd, OurBuf, dest[1], twoArguement, continuityIndex, acc, &islogin, &istonextstage);
+				else	
+					continuityIndex = dealwithLoginout(thrdPtr->conn_fd, OurBuf, dest[1], twoArguement, continuityIndex, acc, &islogin, &istonextstage);
+				printf("%d: ousside, islogin = %d; ; OurBuf = %s %d, dst[1] = %s!\n", pthread_self(), islogin, OurBuf, debug, dst[1]);
 				//WhatShouldBeThis = continuityIndex;
 			}
 			else
 			{
-				//printf("Error: fragment! the left context won't be parsed! WTF...\n");
+				printf("Error: fragment! the left context won't be parsed! WTF...\n");
 				break;
 			}
+			debug ++;
 		}
 	}
+	pthread_exit((void*)1);
 }
 
 int main(int argc, char** argv) {
@@ -266,14 +282,12 @@ int main(int argc, char** argv) {
     }
 	
     int i, err;
-	//int PassPort[65536] = {0};
     struct sockaddr_in cliaddr;  // used by accept()
     int clilen;
     int conn_fd;  // fd for a new connection with client
-    //char buf[512];
 	pthread_t tid1;
 
-    // Initialize server	(open svr.listen_fd)
+    // open svr.listen_fd
     init_server((unsigned short) atoi(argv[1]));
 
     //TODO: Get file descriptor table size and initize request table
@@ -288,9 +302,11 @@ int main(int argc, char** argv) {
     requestP[svr.listen_fd].conn_fd = svr.listen_fd;
     strcpy(requestP[svr.listen_fd].host, svr.hostname);
 	
-    // Loop for handling connections
+    //TODO: loop for handling connections
     fprintf(stderr, "starting on %.80s, port %d, fd %d, maxconn %d...\n", svr.hostname, svr.port, svr.listen_fd, maxfd);
 	fd_set readset;
+	TD data[TableSize];
+	int conNum = 0;
     while (1) {
 		//check whether new connection or command in
 		while(1)
@@ -316,13 +332,13 @@ int main(int argc, char** argv) {
 				strcpy(requestP[conn_fd].host, inet_ntoa(cliaddr.sin_addr));
 				fprintf(stderr, "parent thrd: getting a new request... fd %d from %s\n", conn_fd, requestP[conn_fd].host);
 				// TODO: thrd
-				TD data;
-				data.conn_fd = conn_fd;
-				data.listen_fd = svr.listen_fd;
+				data[conNum].conn_fd = conn_fd;
+				data[conNum].listen_fd = svr.listen_fd;
 				//printf("data->conn_fd = %d; data->listen_fd = %d\n", data->conn_fd, data->listen_fd);
-				err = pthread_create(&tid1, NULL, &threadAnothSrv, &data);
+				err = pthread_create(&tid1, NULL, &threadAnothSrv, &(data[conNum]));
 				if(err != 0)
 					printf("GG, cant create thrd\n");
+				conNum ++;
 			}
 		}
     }
