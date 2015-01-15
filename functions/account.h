@@ -45,8 +45,10 @@ int authenticate(char* username,char* password){
 	int i;
 	for(i=0;i<accountcnt;i++){
 		if(strcmp(username,accountinfo[i].username)==0){
-			if(strcmp(password,accountinfo[i].password)==0)
+			if(strcmp(password,accountinfo[i].password)==0){
+				accountinfo[i].isOnline = 1;
 				return 0; // authentication passed
+			}
 			else
 				return 1; // wrong password
 		}
@@ -60,6 +62,31 @@ void print_account(){ // just for debugging
 		printf("%d. username: %s\n",i,accountinfo[i].username);
 		printf("   password: %s\n",accountinfo[i].password);
 	}
+}
+
+void account_init(struct account* acc){
+	acc->job_queue.head = 0;
+	acc->job_queue.tail = 0;
+	acc->isOnline = 0;
+}
+
+void logout_account(char* username){
+	int i;
+	for(i=0;i<accountcnt;i++){
+		if(strcmp(username,accountinfo[i].username)==0){
+			accountinfo[i].isOnline = 0;
+		}
+	}
+}
+
+int is_online(char* username){
+	int i;
+	for(i=0;i<accountcnt;i++){
+		if(strcmp(username,accountinfo[i].username)==0){
+			return accountinfo[i].isOnline;
+		}
+	}
+	return -1;
 }
 
 #endif
