@@ -65,6 +65,7 @@ const  char signupBadU[] = "<signup-badU>";
 const  char loginGood[]  = "<login-good>";
 const  char loginBadU[]  = "<login-badU>";
 const  char loginBadP[]  = "<login-badP>";
+const  char logoutConfirmed[] = "<logout-con>"
 
 typedef struct thrdData
 {
@@ -173,6 +174,8 @@ int dealwithLoginout( 	int conn_fd, char OurBuf[], char dst1[], int twoArguement
 		else if(OurBuf[0] == 'l' && OurBuf[3] == 'o')
 		{
 			printf("there's an logout; but this version's thread still operates...\n");
+			sprintf(justBuf, "%s", signupBadU); //here
+			write(conn_fd, justBuf, strlen(justBuf));
 			*islogin = 1126;
 			return 0;
 		}
