@@ -65,7 +65,7 @@ const char signupBadU[] = "<signup-badU>";
 const char loginGood[] = "<login-good>";
 const char loginBadU[] = "<login-badU>";
 const char loginBadP[] = "<login-badP>";
-static pthread_mutex_t AccLk = PTHREAD_MUTEX_INITIALIZER;
+const char thisisfile[] = "file";
 typedef struct thrdData
 {
 	int conn_fd;
@@ -90,34 +90,27 @@ void* threadSecondSrv(void* arg)
 	while(1)
 	{
 		//TODO: check whether message exists + tell the user(acc)
-		pthread_mutex_lock(&AccLk);
 		i=job_get(OurBuf,&jptr); 
 		
 		if(i==0){
 			if(jptr->jobtype == 'f')
 			{
-				printf("in2nd thrd: jptr->seg_count = %d\n", jptr->seg_count);
+				//printf("in2nd thrd: jptr->seg_count = %d\n", jptr->seg_count);
 				sprintf(totransmitBuf, "<username>%s<\\><filedata,%s,%d>%s<\\>",jptr->src_usr , jptr->filename, jptr-> seg_count, jptr->content);
 			}
 			else
 				sprintf(totransmitBuf, "<username>%s<\\><message>%s<\\>",jptr->src_usr ,jptr->content);
 			write(thrdPtr->conn_fd, totransmitBuf, strlen(totransmitBuf));
 			print_job(jptr);
-			free(jptr); 
+			job_free(jptr); 
 		}
-		else 
-			if(i==-1) 
-				printf("%u: Job queue is empty!\n", pthread_self());
-		else 
+		/*else 
 			if(i==-2) 
-				printf("%u: No such user!\n", pthread_self());
-		
-		pthread_mutex_unlock(&AccLk);
+				printf("%u: No such user!\n", pthread_self());*/
 		sleep(1);
 	}
 	pthread_exit((void *) 1);
 }
-
 int dealwithLoginout(int conn_fd, char OurBuf[], char dst1[], int twoArguement, int continuityIndex, char acc[], int* islogin, int* istonextstage)
 {
 	int i;
@@ -265,7 +258,6 @@ int KnockMtransFiletrans(int conn_fd, char OurBuf[], char* dst1, int twoArguemen
 		{
 			//printf("bef Q: dst1 = %s, dstbuf = %s", dst1, dstbuf);
 			//TODO: send message
-			pthread_mutex_lock(&AccLk);
 			i=job_assign(toWhoseAcc, acc, 'm', 0, NULL, dstbuf);
 			if(i==0) 
 				printf("Successfully queued message!\n");
@@ -274,23 +266,20 @@ int KnockMtransFiletrans(int conn_fd, char OurBuf[], char* dst1, int twoArguemen
 			
 			printf("%s", ImDebug);
 			for(i=0;i<4;i++){
-				printf("----- Job queue of %s -----\n",accountinfo[i].username);
-				print_queue(&accountinfo[i].job_queue);
-				printf("\n");
-			}
-			printf("%s", ImDebug);
-			pthread_mutex_unlock(&AccLk);
+		printf("----- Job queue of %s -----\n",accountinfo[i].username);
+		print_queue(&accountinfo[i].job_queue);
+		printf("\n");
+	}
+	printf("%s", ImDebug);
 			return 0;
 		}
 		else if(OurBuf[0] == 'f')
 		{
-			pthread_mutex_lock(&AccLk);
 			i=job_assign(toWhoseAcc,acc,'f',*islogin,fileName,dstbuf); 
 			if(i==0) 
 				printf("file transf Successful!\n");
 			else if(i==-2) 
 				printf("No such file destination user!\n");
-			pthread_mutex_unlock(&AccLk);
 		}
 		/*else if(OurBuf[0] == 'n')
 			return ThisIsAFile;*/			
@@ -360,10 +349,10 @@ void* threadAnothSrv(void* arg)
 						
 						islogin = datagram_cnt;
 						sprintf(fileName, "%s", filenameptr);
-						sprintf(OurBuf, "file", 4);
-						printf("%d: OurBuf = %s %d; fileName = %s, datagram = %d; content = %s!\n", pthread_self(), OurBuf, debug, fileName, islogin, dst[1]);
+						sprintf(OurBuf, "%s", thisisfile);
+						//printf("%d: OurBuf = %s %d; fileName = %s, datagram = %d; content = %s!\n", pthread_self(), OurBuf, debug, fileName, islogin, dst[1]);
 						continuityIndex = KnockMtransFiletrans(thrdPtr->conn_fd, OurBuf, dest[1], twoArguement, continuityIndex, acc, &islogin, &istonextstage, toWhoseAcc, fileName);
-						printf("%d: ousside, OurBuf = %s %d; fileName = %s, datagram = %d; content = %s!\n", pthread_self(), OurBuf, debug, fileName, islogin, dst[1]);	
+						//printf("%d: ousside, OurBuf = %s %d; fileName = %s, datagram = %d; content = %s!\n", pthread_self(), OurBuf, debug, fileName, islogin, dst[1]);	
 					}
 					else
 					{
@@ -372,17 +361,17 @@ void* threadAnothSrv(void* arg)
 						else
 							twoArguement = 1;
 						sprintf(OurBuf, dst[0], strlen(dst[0]));
-						printf("%d: islogin = %d; OurBuf = %s %d, dst[1] = %s!\n", pthread_self(), islogin, OurBuf, debug, dst[1]);
+						//printf("%d: islogin = %d; OurBuf = %s %d, dst[1] = %s!\n", pthread_self(), islogin, OurBuf, debug, dst[1]);
 						if(istonextstage == ThisIsGoTONextStage)
 							continuityIndex = KnockMtransFiletrans(thrdPtr->conn_fd, OurBuf, dest[1], twoArguement, continuityIndex, acc, &islogin, &istonextstage, toWhoseAcc, NULL);
 						else	
 							continuityIndex = dealwithLoginout(thrdPtr->conn_fd, OurBuf, dest[1], twoArguement, continuityIndex, acc, &islogin, &istonextstage);
-						printf("%d: ousside, islogin = %d; ; OurBuf = %s %d, dst[1] = %s!\n", pthread_self(), islogin, OurBuf, debug, dst[1]);						
+						//printf("%d: ousside, islogin = %d; ; OurBuf = %s %d, dst[1] = %s!\n", pthread_self(), islogin, OurBuf, debug, dst[1]);						
 					}						
 				}
 				else
 				{
-					printf("Error: fragment! the left context won't be parsed! WTF...\n");
+					//printf("Error: fragment! the left context won't be parsed! WTF...\n");
 					break;
 				}
 			
@@ -425,8 +414,6 @@ int main(int argc, char** argv) {
 	fd_set readset;
 	TD data[TableSize];
 	int conNum = 0;
-
-	//TODO: get connections
     while (1) {
 		//check whether new connection or command in
 		while(1)
@@ -529,3 +516,5 @@ static void init_server(unsigned short port) {
         ERR_EXIT("listen");
     }
 }
+
+
