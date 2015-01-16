@@ -219,14 +219,14 @@ int KnockMtransFiletrans( int conn_fd, char OurBuf[], char* dst1, int twoArgueme
 			return 0;
 		}
 	}
-	else
+	else 
 		return -1126;
 }
 
 void* threadAnothSrv(void* arg)
 {
 	char OurBuf[bufSize];
-	char acc[] 		= "thisisnotrue";
+	char acc[bufSize];
 	int  continuityIndex 	= 0;
 	int  islogin 		= 0;
 	int  istonextstage 	= 0;
@@ -238,14 +238,14 @@ void* threadAnothSrv(void* arg)
 	{
 		// TODO: parse messages; given messages parsed, gonna act
 		int debug = 0;
-		int ret = handle_read(&requestP[thrdPtr->conn_fd]); 
+		int ret =  handle_read(&requestP[thrdPtr->conn_fd]); 
 		//printf("thrd: %u, %d, ret = %d\n",tid ,thrdPtr->conn_fd, ret);
 		if (ret < 0) {
 			fprintf(stderr, "bad request from %s\n", requestP[thrdPtr->conn_fd].host);
 			continue;
 		}
 		char* pos;
-		char dst[2][32];
+		char dst[2][bufSize];
 		char* dest[2]={dst[0],dst[1]};
 		pos = requestP[thrdPtr->conn_fd].buf;
 
