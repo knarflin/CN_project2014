@@ -315,7 +315,7 @@ int s_online_ftp( int clie_sockfd ){
 				return -1;
 			}else if( read_len == 0 ){
 				//EOF
-				sprintf( w_buf, "<username>%s<\\>" "<filedata,%s,%d><\\>", dst_usr, rf_ptr->filename, 0 );
+				sprintf( w_buf, "<username>%s<\\>" "<notamessage>" "<filedata,%s,%d><\\>", dst_usr, rf_ptr->filename, 0 );
 				if( send( clie_sockfd, w_buf, strlen(w_buf), 0 ) <= 0 ){
 					fprintf( stderr, "Fail transfering, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 				}
@@ -325,7 +325,7 @@ int s_online_ftp( int clie_sockfd ){
 				rf_list = remove_fl( rf_list, rf_tmp->filepath );
 			}else{
 				//not EOF
-				sprintf( w_buf, "<username>%s<\\>" "<filedata,%s,%d>%s<\\>", 
+				sprintf( w_buf, "<username>%s<\\>" "<notamessage>" "<filedata,%s,%d>%s<\\>", 
 						dst_usr, rf_ptr->filename, rf_ptr->datagram_cnt, r_buf );
 				if( send( clie_sockfd, w_buf, strlen(w_buf), 0 ) <= 0 ){
 					fprintf( stderr, "Fail transfering, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
