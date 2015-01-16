@@ -1,84 +1,80 @@
-#include <errno.h>
-#include <netdb.h>
-#include <fcntl.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <pthread.h>
+#include <errno.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
+#include <fcntl.h>
 #include <netinet/in.h>
-
+#include <arpa/inet.h>
+#include <netdb.h>
 #include "parse.h"
-#include "cqueue.h"
 #include "filter.h"
 #include "account.h"
+#include "cqueue.h"
+#include <pthread.h>
 
 #define ERR_EXIT(a) { perror(a); exit(1); }
 const char ImDebug[] = "***\n";
-const int bufSize 		= 1000;
-const int ThisIsASignUp 	= ('s' - '0');
-const int ThisIsAnAccount 	= ('a' - '0');
-const int ThisIsALogIn 		= ('l' - '0');
-const int ThisIsAUserName 	= ('u' - '0');
-const int ThisIsAPassword 	= ('p' - '0');
-const int ThisIsALogOut 	= -('l' - '0');
-const int ThisIsGoTONextStage 	= ('G' - '0');
-const int ThisIsAKnock 		= ('k' - '0');
+const int bufSize = 1000;
+const int ThisIsASignUp = ('s' - '0');
+const int ThisIsAnAccount = ('a' - '0');
+const int ThisIsALogIn = ('l' - '0');
+const int ThisIsAUserName = ('u' - '0');
+const int ThisIsAPassword = ('p' - '0');
+const int ThisIsALogOut = -('l' - '0');
+const int ThisIsGoTONextStage = ('G' - '0');
+const int ThisIsAKnock = ('k' - '0');
 
 typedef struct {
-	char 		hostname[512];  // server's hostname
-	unsigned short 	port;  		// port to listen
-	int 		listen_fd;  	// fd to wait for a new connection!!!
+    char hostname[512];  // server's hostname
+    unsigned short port;  // port to listen
+    int listen_fd;  // fd to wait for a new connection!!!
 } server;
 
 typedef struct {
-	char	host[512];  	// client's host
-	int	conn_fd;  	// fd to talk with client!!!
-	char 	buf[512];  	// data sent by/to client
-	size_t 	buf_len;  	// bytes used by buf
-	// you don't need to change this.
+    char host[512];  // client's host
+    int conn_fd;  // fd to talk with client!!!
+    char buf[512];  // data sent by/to client
+    size_t buf_len;  // bytes used by buf
+    // you don't need to change this.
 	int account;
-	int wait_for_write;  	// used by handle_read to know if the header is read or not.
+    int wait_for_write;  // used by handle_read to know if the header is read or not.
 } request;
 
-server 	 svr;  			// server
-request* requestP = NULL; 	// point to a list of requests!!!
-int maxfd;  			//即server.c本身有的fd table大小 size of open file descriptor table, size of request list
+server svr;  // server
+request* requestP = NULL;  // point to a list of requests!!!
+int maxfd;  //即server.c本身有的fd table大小 size of open file descriptor table, size of request list
 const int TableSize = 10;
-const char* accept_read_header 	= "ACCEPT_FROM_READ";
+const char* accept_read_header = "ACCEPT_FROM_READ";
 const char* accept_write_header = "ACCEPT_FROM_WRITE";
-const char* reject_header 	= "REJECT\n";
-const char* Balance 		= "Balance:";
-const char* OperationFail 	= "Operation fail.";
-const char* ThisOccupied 	= "This account is occupied.";
-const char* ThisAvailable 	= "This account is available.";
-const char SIGNUP[] 		= "signup";
+const char* reject_header = "REJECT\n";
+const char* Balance = "Balance:";
+const char* OperationFail = "Operation fail.";
+const char* ThisOccupied = "This account is occupied.";
+const char* ThisAvailable = "This account is available.";
+const char SIGNUP[] = "signup";
 
 // Forwards
-static int  handle_read ( request* reqP		);	//handle each write from each server
-static void init_server ( unsigned short port	);
-static void init_request( request* reqP		);
-const  char signupGood[] = "<signup-good>";
-const  char signupBadU[] = "<signup-badU>";
-const  char loginGood[]  = "<login-good>";
-const  char loginBadU[]  = "<login-badU>";
-const  char loginBadP[]  = "<login-badP>";
-const  char logoutConfirmed[] = "<logout-con>";
+static void init_server(unsigned short port);
+static void init_request(request* reqP);
+static int handle_read(request* reqP);	//handle each write from each server
+const char signupGood[] = "<signup-good>";
+const char signupBadU[] = "<signup-badU>";
+const char loginGood[] = "<login-good>";
+const char loginBadU[] = "<login-badU>";
+const char loginBadP[] = "<login-badP>";
 
 typedef struct thrdData
 {
 	int conn_fd;
 	int listen_fd;
-} TD;
-
+}TD;
 typedef struct secondThrdData
 {
 	int conn_fd;
 	char nameBuf[2000];
 }STD;
-
 void* threadSecondSrv(void* arg)
 {
 	//only conn_fd is valid; listen_fd is meaningless/unknown
@@ -111,17 +107,16 @@ void* threadSecondSrv(void* arg)
 	}
 	pthread_exit((void *) 1);
 }
-
-int dealwithLoginout( 	int conn_fd, char OurBuf[], char dst1[], int twoArguement, 
-			int continuityIndex, char acc[], int* islogin, int* istonextstage)
+int dealwithLoginout(int conn_fd, char OurBuf[], char dst1[], int twoArguement, int continuityIndex, char acc[], int* islogin, int* istonextstage)
 {
-	int  i;
+	int i;
 	char justBuf[bufSize];
-	char dstbuf [bufSize];
+	char dstbuf[bufSize];
 	pthread_t tid2;
-	for(i = 0; i<bufSize	 ; i++) { dstbuf[i] = '\0';	}
-	for(i = 0; i<strlen(dst1); i++) { dstbuf[i] = dst1[i]; 	}
-
+	for(i = 0;i<bufSize;i++)
+		dstbuf[i] = '\0';
+	for(i = 0;i<strlen(dst1);i++)
+		dstbuf[i] = dst1[i];
 	
 	STD data;
 	data.conn_fd = conn_fd; 
@@ -178,7 +173,7 @@ int dealwithLoginout( 	int conn_fd, char OurBuf[], char dst1[], int twoArguement
 					sprintf(justBuf, "%s", loginBadU);
 					write(conn_fd, justBuf, strlen(justBuf));
 				}
-
+				
 				*islogin = 0;
 				return 0;
 			}
@@ -199,7 +194,7 @@ int dealwithLoginout( 	int conn_fd, char OurBuf[], char dst1[], int twoArguement
 					sprintf(justBuf, "%s", signupBadU);
 					write(conn_fd, justBuf, strlen(justBuf));
 				}
-
+				
 				return 0;
 			}
 		}
@@ -222,8 +217,6 @@ int dealwithLoginout( 	int conn_fd, char OurBuf[], char dst1[], int twoArguement
 		else if(OurBuf[0] == 'l' && OurBuf[3] == 'o')
 		{
 			printf("there's an logout; but this version's thread still operates...\n");
-			sprintf(justBuf, "%s", signupBadU); //here
-			write(conn_fd, justBuf, strlen(justBuf));
 			*islogin = 1126;
 			return 0;
 		}
@@ -236,12 +229,10 @@ int dealwithLoginout( 	int conn_fd, char OurBuf[], char dst1[], int twoArguement
 	}
 	return -1126;
 }
-
-const char userOnline[]  = "<user-online>";
+const char userOnline[] = "<user-online>";
 const char userOffline[] = "<user-offline>";
 
-int KnockMtransFiletrans( int conn_fd, char OurBuf[], char* dst1, int twoArguement,
-			  int continuityIndex, char acc[], int* islogin, int *istonextstage )
+int KnockMtransFiletrans(int conn_fd, char OurBuf[], char* dst1, int twoArguement, int continuityIndex, char acc[], int* islogin, int *istonextstage,char toWhoseAcc[2000])
 {
 	char justBuf[bufSize];
 	char dstbuf[bufSize];
@@ -278,7 +269,7 @@ int KnockMtransFiletrans( int conn_fd, char OurBuf[], char* dst1, int twoArgueme
 		{
 			printf("there's a knock, dont be afraid~\n");
 			//TODO: knock
-			if( is_online(dst1) == 1 )
+			if(is_online(dst1))
 			{
 				sprintf(justBuf, "%s", userOnline);
 				write(conn_fd, justBuf, strlen(justBuf));
@@ -294,24 +285,23 @@ int KnockMtransFiletrans( int conn_fd, char OurBuf[], char* dst1, int twoArgueme
 		}
 		return 0;
 }
-
 void* threadAnothSrv(void* arg)
 {
 	char OurBuf[bufSize];
-	char acc[1000];
+	char acc[1000] = {0};
 	char toWhoseAcc[2000];
-	int  continuityIndex 	= 0;
-	int  islogin 		= 0;
-	int  istonextstage 	= 0;
-	int  twoArguement;
-	TD 	*thrdPtr 	= arg;
-	fd_set 	readset;
-
+	TD *thrdPtr = arg;
+	fd_set readset;
+	int continuityIndex = 0;
+	int islogin = 0;
+	int twoArguement;
+	int istonextstage = 0;
+	
 	while(1)
 	{
 		// TODO: parse messages; given messages parsed, gonna act
 		int debug = 0;
-		int ret =  handle_read(&requestP[thrdPtr->conn_fd]); 
+		int ret = handle_read(&requestP[thrdPtr->conn_fd]); 
 		//printf("thrd: %u, %d, ret = %d\n",tid ,thrdPtr->conn_fd, ret);
 		if (ret < 0) {
 			fprintf(stderr, "bad request from %s\n", requestP[thrdPtr->conn_fd].host);
@@ -321,7 +311,7 @@ void* threadAnothSrv(void* arg)
 		char dst[2][1000];
 		char* dest[2]={dst[0],dst[1]};
 		pos = requestP[thrdPtr->conn_fd].buf;
-
+		
 		//TODO: do sth corresponding to client's input
 		while(1)
 		{
@@ -334,15 +324,11 @@ void* threadAnothSrv(void* arg)
 					twoArguement = 1;
 				sprintf(OurBuf, dst[0], strlen(dst[0]));
 				printf("%d: islogin = %d; OurBuf = %s %d, dst[1] = %s!\n", pthread_self(), islogin, OurBuf, debug, dst[1]);
-				if(istonextstage == ThisIsGoTONextStage){
-					continuityIndex = KnockMtransFiletrans(thrdPtr->conn_fd, OurBuf, dest[1], 
-							twoArguement, continuityIndex, acc, &islogin, &istonextstage);
-				}else{
-					continuityIndex = dealwithLoginout( thrdPtr->conn_fd, OurBuf, dest[1], 
-							twoArguement, continuityIndex, acc, &islogin, &istonextstage);
-				}
-				printf("%d: ousside, islogin = %d; ; OurBuf = %s %d, dst[1] = %s!\n",
-						pthread_self(), islogin, OurBuf, debug, dst[1]);
+				if(istonextstage == ThisIsGoTONextStage)
+					continuityIndex = KnockMtransFiletrans(thrdPtr->conn_fd, OurBuf, dest[1], twoArguement, continuityIndex, acc, &islogin, &istonextstage, toWhoseAcc);
+				else	
+					continuityIndex = dealwithLoginout(thrdPtr->conn_fd, OurBuf, dest[1], twoArguement, continuityIndex, acc, &islogin, &istonextstage);
+				printf("%d: ousside, islogin = %d; ; OurBuf = %s %d, dst[1] = %s!\n", pthread_self(), islogin, OurBuf, debug, dst[1]);
 				//WhatShouldBeThis = continuityIndex;
 			}
 			else
@@ -357,39 +343,39 @@ void* threadAnothSrv(void* arg)
 }
 
 int main(int argc, char** argv) {
-	// Parse args.
-	if (argc != 2) {
-		fprintf(stderr, "usage: %s [port]\n", argv[0]);
-		exit(1);
-	}
-
-	int 	i, err;
-	int 	clilen;
-	int 	conn_fd;  		// fd for a new connection with client
-	struct 	sockaddr_in cliaddr;  	// used by accept()
+    // Parse args.
+    if (argc != 2) {
+        fprintf(stderr, "usage: %s [port]\n", argv[0]);
+        exit(1);
+    }
+	
+    int i, err;
+    struct sockaddr_in cliaddr;  // used by accept()
+    int clilen;
+    int conn_fd;  // fd for a new connection with client
 	pthread_t tid1;
 
-	// open svr.listen_fd
-	init_server((unsigned short) atoi(argv[1]));
+    // open svr.listen_fd
+    init_server((unsigned short) atoi(argv[1]));
 
-	//TODO: Get file descriptor table size and initize request table
-	maxfd 	 = TableSize;							  
-	requestP = (request*) malloc(sizeof(request) * maxfd);
-	if (requestP == NULL) {
-		ERR_EXIT("out of memory allocating all requests");
-	}
-	for (i = 0; i < maxfd; i++) {
-		init_request(&requestP[i]);
-	}
-	requestP[svr.listen_fd].conn_fd = svr.listen_fd;
-	strcpy(requestP[svr.listen_fd].host, svr.hostname);
-
-	//TODO: loop for handling connections
-	fprintf(stderr, "starting on %.80s, port %d, fd %d, maxconn %d...\n", svr.hostname, svr.port, svr.listen_fd, maxfd);
+    //TODO: Get file descriptor table size and initize request table
+    maxfd = TableSize;							  
+    requestP = (request*) malloc(sizeof(request) * maxfd);
+    if (requestP == NULL) {
+        ERR_EXIT("out of memory allocating all requests");
+    }
+    for (i = 0; i < maxfd; i++) {
+        init_request(&requestP[i]);
+    }
+    requestP[svr.listen_fd].conn_fd = svr.listen_fd;
+    strcpy(requestP[svr.listen_fd].host, svr.hostname);
+	
+    //TODO: loop for handling connections
+    fprintf(stderr, "starting on %.80s, port %d, fd %d, maxconn %d...\n", svr.hostname, svr.port, svr.listen_fd, maxfd);
 	fd_set readset;
 	TD data[TableSize];
 	int conNum = 0;
-	while (1) {
+    while (1) {
 		//check whether new connection or command in
 		while(1)
 		{
@@ -402,7 +388,7 @@ int main(int argc, char** argv) {
 				clilen = sizeof(cliaddr);
 				conn_fd = accept(svr.listen_fd, (struct sockaddr*)&cliaddr, (socklen_t*)&clilen);
 				if (conn_fd < 0) {
-					if (errno == EINTR || errno == EAGAIN) { continue; } // try again
+					if (errno == EINTR || errno == EAGAIN) continue;  // try again
 					if (errno == ENFILE) {
 						(void) fprintf(stderr, "out of file descriptor table ... (maxconn %d)\n", maxfd);
 						continue;
@@ -414,17 +400,18 @@ int main(int argc, char** argv) {
 				strcpy(requestP[conn_fd].host, inet_ntoa(cliaddr.sin_addr));
 				fprintf(stderr, "parent thrd: getting a new request... fd %d from %s\n", conn_fd, requestP[conn_fd].host);
 				// TODO: thrd
-				data[conNum].conn_fd 	= conn_fd;
-				data[conNum].listen_fd 	= svr.listen_fd;
+				data[conNum].conn_fd = conn_fd;
+				data[conNum].listen_fd = svr.listen_fd;
 				//printf("data->conn_fd = %d; data->listen_fd = %d\n", data->conn_fd, data->listen_fd);
 				err = pthread_create(&tid1, NULL, &threadAnothSrv, &(data[conNum]));
-				if(err != 0) { 	printf("GG, cant create thrd\n"); }
+				if(err != 0)
+					printf("GG, cant create thrd\n");
 				conNum ++;
 			}
 		}
-	}
-	free(requestP);
-	return 0;
+    }
+    free(requestP);
+    return 0;
 }
 
 
@@ -433,10 +420,10 @@ int main(int argc, char** argv) {
 #include <fcntl.h>
 
 static void init_request(request* reqP) {
-	reqP->conn_fd = -1;
-	reqP->buf_len = 0;
-	reqP->account = 0;
-	reqP->wait_for_write = 0;
+    reqP->conn_fd = -1;
+    reqP->buf_len = 0;
+    reqP->account = 0;
+    reqP->wait_for_write = 0;
 }
 
 // basically, handle_read is used to read in req(i.e. context that client want U to know) from the client
@@ -446,45 +433,48 @@ static void init_request(request* reqP) {
 // error code:
 // -1: client connection error
 int handle_read(request* reqP) {
-	int r, errNum;
-	char buf[512] = {0};
-
-	// Read in request from client
-	r = read(reqP->conn_fd, buf, sizeof(buf));
-	if (r < 0){
+    int r, errNum;
+    char buf[512] = {0};
+	
+    // Read in request from client
+    r = read(reqP->conn_fd, buf, sizeof(buf));
+	//printf("buf inside handle_read = %s\n", buf);
+    if (r < 0) 
 		errNum = -1;
-	}else if (r == 0){
+    else if (r == 0)
 		errNum = 0;
-	}else{
+	
+	else
+	{
 		memset(reqP->buf, 0, sizeof(reqP->buf)); //Warning!! unparsed strings in reqP's buf would be clear 
 		memmove(reqP->buf, buf, strlen(buf));
 		errNum = 1;
 	}
-	return errNum;
+    return errNum;
 }
 
 static void init_server(unsigned short port) {
-	struct 	sockaddr_in servaddr;
-	int 	tmp;
+    struct sockaddr_in servaddr;
+    int tmp;
 
-	gethostname(svr.hostname, sizeof(svr.hostname));
-	svr.port = port;
+    gethostname(svr.hostname, sizeof(svr.hostname));
+    svr.port = port;
 
-	svr.listen_fd = socket(AF_INET, SOCK_STREAM, 0);
-	if (svr.listen_fd < 0) ERR_EXIT("socket");
+    svr.listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (svr.listen_fd < 0) ERR_EXIT("socket");
 
-	memset(&servaddr, 0, sizeof(servaddr));
-	servaddr.sin_family 	 = AF_INET;
-	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	servaddr.sin_port 	 = htons(port);
-	tmp = 1;
-	if (setsockopt(svr.listen_fd, SOL_SOCKET, SO_REUSEADDR, (void*)&tmp, sizeof(tmp)) < 0) {
-		ERR_EXIT("setsockopt");
-	}
-	if (bind(svr.listen_fd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0) {
-		ERR_EXIT("bind");
-	}
-	if (listen(svr.listen_fd, 1024) < 0) {
-		ERR_EXIT("listen");
-	}
+    bzero(&servaddr, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servaddr.sin_port = htons(port);
+    tmp = 1;
+    if (setsockopt(svr.listen_fd, SOL_SOCKET, SO_REUSEADDR, (void*)&tmp, sizeof(tmp)) < 0) {
+        ERR_EXIT("setsockopt");
+    }
+    if (bind(svr.listen_fd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0) {
+        ERR_EXIT("bind");
+    }
+    if (listen(svr.listen_fd, 1024) < 0) {
+        ERR_EXIT("listen");
+    }
 }

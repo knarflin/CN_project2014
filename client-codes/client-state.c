@@ -252,7 +252,7 @@ int s_online_recv( void* clie_sockfd_ptr ){
 					fprintf( stderr, "Fail unlocking, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 					return -1;
 				}
-			}else if( strcasecmp( dest[0], "name" ) == 0 ){
+			}else if( strcasecmp( dest[0], "username" ) == 0 ){
 				sprintf( src_usr, "%s", dest[1] );
 			}else if( strcasecmp( dest[0], "message") == 0 ){
 				printf( "MSG FROM %s: [%s]\n", src_usr, dest[1] );
