@@ -101,7 +101,10 @@ void* threadSecondSrv(void* arg)
 		*/
 		if(i==0){
 			if(jptr->jobtype == 'f')
+			{
+				printf("in2nd thrd: jptr->seg_count = %d\n", jptr->seg_count);
 				sprintf(totransmitBuf, "<username>%s<\\><filedata,%s,%d>%s<\\>",jptr->src_usr , jptr->filename, jptr-> seg_count, jptr->content);
+			}
 			else
 				sprintf(totransmitBuf, "<username>%s<\\><message>%s<\\>",jptr->src_usr ,jptr->content);
 			write(thrdPtr->conn_fd, totransmitBuf, strlen(totransmitBuf));
@@ -276,10 +279,9 @@ int KnockMtransFiletrans(int conn_fd, char OurBuf[], char* dst1, int twoArguemen
 				printf("No such destination user!haha~\n");
 			return 0;
 		}
-		//(thrdPtr->conn_fd, OurBuf, dest[1], twoArguement, continuityIndex, acc, &islogin, &istonextstage, toWhoseAcc, fileName);
 		else if(OurBuf[0] == 'f')
 		{
-			i=job_assign(toWhoseAcc,acc,'f',12,fileName,dstbuf); 
+			i=job_assign(toWhoseAcc,acc,'f',*islogin,fileName,dstbuf); 
 			if(i==0) 
 				printf("file transf Successful!\n");
 			else if(i==-2) 
@@ -291,7 +293,7 @@ int KnockMtransFiletrans(int conn_fd, char OurBuf[], char* dst1, int twoArguemen
 		{
 			printf("there's a knock, dont be afraid~\n");
 			//TODO: knock
-			if(is_online(dst1) == 1)
+			if(is_online(dst1))
 			{
 				sprintf(justBuf, "%s", userOnline);
 				write(conn_fd, justBuf, strlen(justBuf));
@@ -345,6 +347,7 @@ void* threadAnothSrv(void* arg)
 				{
 					if(isfiledata)
 					{ // 1 for isfiledata, 0 for not
+						printf("original = %s\n", requestP[thrdPtr->conn_fd].buf);
 						printf("Is file data!\n");
 						printf("filename: %s\n",filenameptr);
 						printf("datagram_cnt: %d\n",datagram_cnt);
@@ -458,7 +461,6 @@ int main(int argc, char** argv) {
 
 
 // ======================================================================================================
-// You don't need to know how the following codes are working
 #include <fcntl.h>
 
 static void init_request(request* reqP) {
@@ -520,3 +522,5 @@ static void init_server(unsigned short port) {
         ERR_EXIT("listen");
     }
 }
+
+
