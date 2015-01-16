@@ -308,6 +308,7 @@ int s_online_ftp( int clie_sockfd ){
 
 	while( rf_list != NULL ){
 		for( rf_ptr = rf_list; rf_ptr != NULL; ){
+			memset( r_buf, 0, sizeof(r_buf) );
 			read_len = read( rf_ptr->fd, r_buf, FILESEG_LIMIT_LEN );
 			if( read_len < 0 ){
 				//read() error
@@ -315,7 +316,7 @@ int s_online_ftp( int clie_sockfd ){
 				return -1;
 			}else if( read_len == 0 ){
 				//EOF
-				sprintf( w_buf, "<username>%s<\\>" "<notamessage>" "<filedata,%s,%d><\\>", dst_usr, rf_ptr->filename, 0 );
+				sprintf( w_buf, "<username>%s<\\>" "<filedata,%s,%d><\\>", dst_usr, rf_ptr->filename, 0 );
 				if( send( clie_sockfd, w_buf, strlen(w_buf), 0 ) <= 0 ){
 					fprintf( stderr, "Fail transfering, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 				}
@@ -325,7 +326,7 @@ int s_online_ftp( int clie_sockfd ){
 				rf_list = remove_fl( rf_list, rf_tmp->filepath );
 			}else{
 				//not EOF
-				sprintf( w_buf, "<username>%s<\\>" "<notamessage>" "<filedata,%s,%d>%s<\\>", 
+				sprintf( w_buf, "<username>%s<\\>" "<filedata,%s,%d>%s<\\>", 
 						dst_usr, rf_ptr->filename, rf_ptr->datagram_cnt, r_buf );
 				if( send( clie_sockfd, w_buf, strlen(w_buf), 0 ) <= 0 ){
 					fprintf( stderr, "Fail transfering, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
@@ -415,6 +416,7 @@ int s_online_msg( int clie_sockfd ){
 		input_len = strlen(input);
 		if(( input_len == 0 ) || ( input_len == 1 && input[0] == '\n')){ continue; }
 		input[ input_len-1 ] = '\0'; //replace '\n' with '\0'
+		memset( w_buf, 0, sizeof(w_buf) );
 		sprintf( w_buf, "<username>%s<\\><message>%s<\\>", dst_usr, input );
 		if( send( clie_sockfd, w_buf, strlen(w_buf), 0) <= 0 ){
 			fprintf( stderr, "Fail to send dst_usr, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );

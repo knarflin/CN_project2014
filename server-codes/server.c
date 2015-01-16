@@ -113,7 +113,7 @@ void* threadSecondSrv(void* arg)
 				printf("%u: No such user!\n", pthread_self());
 		
 		pthread_mutex_unlock(&AccLk);
-		sleep(5);
+		sleep(1);
 	}
 	pthread_exit((void *) 1);
 }
@@ -298,7 +298,7 @@ int KnockMtransFiletrans(int conn_fd, char OurBuf[], char* dst1, int twoArguemen
 		{
 			printf("there's a knock, dont be afraid~\n");
 			//TODO: knock
-			if(is_online(dst1))
+			if( is_online(dst1) == 1 )
 			{
 				sprintf(justBuf, "%s", userOnline);
 				write(conn_fd, justBuf, strlen(justBuf));

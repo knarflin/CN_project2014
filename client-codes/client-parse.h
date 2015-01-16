@@ -57,14 +57,6 @@ return value: 0
 
 /*
 
-Sample messege:
-
-<signup>
-<fail>
-<ok>
-<login>
-<logout>
-
 ---------------------------------Sample 4---------------------------------
 Input:
 *src = "<filedata,2,15>Hello world!<\\>"
@@ -104,15 +96,18 @@ Sample messege:
 #include"client-mystring.h"
 #include<assert.h>
 
-const char* tag_only[]={
-	"login-u-ok",
-	"login-p-ok",
-	"user-offline",
+// When changing tag_only words, two code segments needs to be modified:
+
+const char* tag_only[]={ // modifiable 1/2
+	"login-good",
+	"login-badU",
+	"login-badP",
 	"user-online",
+	"user-offline",
 	"logout-confirmed"
 };
 
-const int tag_only_count=5;
+const int tag_only_count=6; // modifiable 2/2
 
 // input: src: command string
 // output: dest[0]:tag, dest[1]:content
@@ -190,15 +185,11 @@ int parse(char** src, char** dest, char* filename, int* datagram_cnt, int* isfil
 			dest[1][ptr]=0;
 			break;
 		}
-		else if(dest[1][ptr]=='\r'||dest[1][ptr]=='\n'){
-			dest[1][ptr]='\r';
-			dest[1][++ptr]='\n';
-		}
 		else if(dest[1][ptr]==0){return 0;}
 		else{ptr++;}
 	}
 
-	*src=readpos + 2;
+	*src=readpos+2;
 	return 1;
 }
 
