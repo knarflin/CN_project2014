@@ -141,6 +141,14 @@ void jobqueue_test(){
 	// return value:	0:successful	-1:queue is full	-2:no such dst_usr
 
 	// 1.1 Alice says to Bob, 'Good night!'
+	i=job_assign("Bob","Alice",'m',0,NULL,"Good morning!");
+	if(i==0) printf("Successful!\n\n");
+	else if(i==-2) printf("No such destination user!\n\n");
+
+	i=job_assign("Bob","Alice",'m',0,NULL,"Good afternoon!");
+	if(i==0) printf("Successful!\n\n");
+	else if(i==-2) printf("No such destination user!\n\n");
+
 	i=job_assign("Bob","Alice",'m',0,NULL,"Good night!");
 	if(i==0) printf("Successful!\n\n");
 	else if(i==-2) printf("No such destination user!\n\n");
@@ -232,7 +240,7 @@ int main()
 	//parse_test2();
 	//filter_test();
 	//account_test();
-	//jobqueue_test(); // replace it with the function you want to test
-	msg_history_test();
+	jobqueue_test(); // replace it with the function you want to test
+	//msg_history_test();
 	return 0;
 }
