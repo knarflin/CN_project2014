@@ -65,7 +65,7 @@ const char signupBadU[] = "<signup-badU>";
 const char loginGood[] = "<login-good>";
 const char loginBadU[] = "<login-badU>";
 const char loginBadP[] = "<login-badP>";
-
+static pthread_mutex_t AccLk = PTHREAD_MUTEX_INITIALIZER;
 typedef struct thrdData
 {
 	int conn_fd;
@@ -90,15 +90,9 @@ void* threadSecondSrv(void* arg)
 	while(1)
 	{
 		//TODO: check whether message exists + tell the user(acc)
+		pthread_mutex_lock(&AccLk);
 		i=job_get(OurBuf,&jptr); 
-		//printf("%s", ImDebug);
-		/*
-		S: <username>......<\>		// 檔案來源使用者
-		S: <filedata,filename,15>.....<\> 
-		jobtype
-		seg_count
-		filename
-		*/
+		
 		if(i==0){
 			if(jptr->jobtype == 'f')
 			{
@@ -117,10 +111,13 @@ void* threadSecondSrv(void* arg)
 		else 
 			if(i==-2) 
 				printf("%u: No such user!\n", pthread_self());
+		
+		pthread_mutex_unlock(&AccLk);
 		sleep(5);
 	}
 	pthread_exit((void *) 1);
 }
+
 int dealwithLoginout(int conn_fd, char OurBuf[], char dst1[], int twoArguement, int continuityIndex, char acc[], int* islogin, int* istonextstage)
 {
 	int i;
@@ -255,11 +252,6 @@ int KnockMtransFiletrans(int conn_fd, char OurBuf[], char* dst1, int twoArguemen
 		dstbuf[i] = '\0';
 	for(i = 0;i<strlen(dst1);i++)
 		dstbuf[i] = dst1[i];
-	/*
-	char NameBuf[bufSize];
-	memset(NameBuf, 0, sizeof(NameBuf));
-	for(i = 0;i<strlen(toWhoseAcc);i++)
-		NameBuf[i] = toWhoseAcc[i];*/
 	
 		if(twoArguement == 1 && OurBuf[0] == 'u')
 		{
@@ -271,21 +263,34 @@ int KnockMtransFiletrans(int conn_fd, char OurBuf[], char* dst1, int twoArguemen
 		}
 		else if(twoArguement == 1 && OurBuf[0] == 'm')
 		{
+			//printf("bef Q: dst1 = %s, dstbuf = %s", dst1, dstbuf);
 			//TODO: send message
-			i=job_assign(toWhoseAcc, acc,'m',0,NULL,dstbuf);
+			pthread_mutex_lock(&AccLk);
+			i=job_assign(toWhoseAcc, acc, 'm', 0, NULL, dstbuf);
 			if(i==0) 
 				printf("Successfully queued message!\n");
 			else if(i==-2) 
 				printf("No such destination user!haha~\n");
+			
+			printf("%s", ImDebug);
+			for(i=0;i<4;i++){
+				printf("----- Job queue of %s -----\n",accountinfo[i].username);
+				print_queue(&accountinfo[i].job_queue);
+				printf("\n");
+			}
+			printf("%s", ImDebug);
+			pthread_mutex_unlock(&AccLk);
 			return 0;
 		}
 		else if(OurBuf[0] == 'f')
 		{
+			pthread_mutex_lock(&AccLk);
 			i=job_assign(toWhoseAcc,acc,'f',*islogin,fileName,dstbuf); 
 			if(i==0) 
 				printf("file transf Successful!\n");
 			else if(i==-2) 
 				printf("No such file destination user!\n");
+			pthread_mutex_unlock(&AccLk);
 		}
 		/*else if(OurBuf[0] == 'n')
 			return ThisIsAFile;*/			
@@ -420,6 +425,8 @@ int main(int argc, char** argv) {
 	fd_set readset;
 	TD data[TableSize];
 	int conNum = 0;
+
+	//TODO: get connections
     while (1) {
 		//check whether new connection or command in
 		while(1)
