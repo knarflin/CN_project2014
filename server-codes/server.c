@@ -291,7 +291,7 @@ int KnockMtransFiletrans(int conn_fd, char OurBuf[], char* dst1, int twoArguemen
 		{
 			printf("there's a knock, dont be afraid~\n");
 			//TODO: knock
-			if(is_online(dst1))
+			if(is_online(dst1) == 1)
 			{
 				sprintf(justBuf, "%s", userOnline);
 				write(conn_fd, justBuf, strlen(justBuf));
@@ -520,5 +520,3 @@ static void init_server(unsigned short port) {
         ERR_EXIT("listen");
     }
 }
-
-
