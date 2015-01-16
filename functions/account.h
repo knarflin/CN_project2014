@@ -126,8 +126,14 @@ int job_assign(char* dst_usr, char* _src_usr, char _jobtype, int _seg_count, cha
 	strcpy(jb->src_usr,_src_usr);
 	jb->jobtype=_jobtype;
 	jb->seg_count=_seg_count;
-	jb->filename=_filename;
-	jb->content=_content;
+	if(_jobtype == 'f'){
+		jb->filename = (char *) malloc( (strlen(_filename)+1) * sizeof(char) );
+		strcpy(jb->filename, _filename);
+	}
+	else
+		jb->filename = NULL;
+	jb->content = (char *) malloc( (strlen(_content)+1) * sizeof(char) );
+	strcpy(jb->content, _content);
 	for(i=0;i<accountcnt;i++){
 		if(strcmp(dst_usr,accountinfo[i].username)==0){
 			if(_jobtype=='m') add_message(_src_usr,dst_usr,_content);
@@ -135,6 +141,12 @@ int job_assign(char* dst_usr, char* _src_usr, char _jobtype, int _seg_count, cha
 		}
 	}
 	return -2;
+}
+
+void job_free(struct job* jb){
+	free(jb->filename);
+	free(jb->content);
+	free(jb);
 }
 
 // return 0 for successful, -1 for empty queue, -2 for no such user
