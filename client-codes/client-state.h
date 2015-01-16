@@ -11,10 +11,8 @@
 
 
 static int adjust_buffer( char* buffer, int buf_size, char** offset ){
-	fprintf( stderr, "%c", **offset); //debug point
 	int invalid_len = *offset - buffer;
 	int valid_len = strlen( *offset );
-	fprintf( stderr, "buffer size = %d, invalid = %d, valid = %d\n", buf_size, invalid_len, valid_len ); //debug point
 	memmove( buffer, *offset, valid_len );
 	memset( &buffer[valid_len], 0, invalid_len );
 	*offset = buffer;
@@ -111,7 +109,6 @@ static struct file* write_file( struct file* wf_list, char* filename, int datagr
 		strncpy( tmp -> filename, filename, strlen(filename) );
 		tmp -> next = NULL;
 		if( datagram_cnt == 0 ){ //last segment of the file
-			fprintf( stderr, "write last file segment\n" );//debug point
 			close( tmp -> fd );
 			free( tmp );
 			return NULL;
@@ -125,7 +122,6 @@ static struct file* write_file( struct file* wf_list, char* filename, int datagr
 			return wf_list;
 		}
 		if( datagram_cnt == 0 ){ //last segment of the file
-			fprintf( stderr, "write last file segment\n" );//debug point
 			tmp = wf_list -> next;
 			close( wf_list -> fd );
 			free( wf_list );
@@ -183,7 +179,7 @@ static int _itsig_enqueue( struct it_signal** head, struct it_signal** tail, int
 		fprintf( stderr, "Fail at itsig_enqueue(), strange queue\n" );
 		return -1;
 	}
-	_itsig_printqueue( *head ); //debug point
+	//_itsig_printqueue( *head ); //debug point
 	return 0;
 }
 
@@ -198,7 +194,7 @@ static int _itsig_dequeue( struct it_signal** head, struct it_signal** tail ){
 	if( *head == NULL ){
 		*tail = NULL;
 	}
-	_itsig_printqueue( *head ); //debug point
+	//_itsig_printqueue( *head ); //debug point
 	return 0;
 }
 

@@ -194,7 +194,7 @@ int s_online_general( int clie_sockfd ){
 		fprintf( stderr, "Fail to join thread, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		return -1;
 	}else if( retval != 0 ){
-		fprintf( stderr, "Bad return form thread, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) ); //debug point
+		fprintf( stderr, "Bad return form thread, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		return -1;
 	}
 
@@ -204,7 +204,6 @@ int s_online_general( int clie_sockfd ){
 
 int s_online_recv( void* clie_sockfd_ptr ){
 	int clie_sockfd = *(int *)clie_sockfd_ptr;
-	printf( "Enter s_online_recv()\n" );	//debug point
 	
 	char  r_buf[ BUFFER_SIZE ] = {0};
 	int   buf_valid_len = 0;
@@ -229,7 +228,7 @@ int s_online_recv( void* clie_sockfd_ptr ){
 
 			if( isfiledata ){
 				wf_list = write_file( wf_list, filename, datagram_cnt, dest[1] );
-				print_fl( wf_list ); //debug point
+				//print_fl( wf_list ); //debug point
 			}else if( strcasecmp( dest[0], "logout-confirmed" ) == 0 ){
 				logout_flag = 1;
 			}else if( strcasecmp( dest[0], "user-online" ) == 0 ){
@@ -259,7 +258,6 @@ int s_online_recv( void* clie_sockfd_ptr ){
 			}
 		}
 		buf_valid_len = adjust_buffer( r_buf, sizeof(r_buf), &pos );
-		//fprintf( stderr, "s_online_recv(): buf_valid_len = %d\n", buf_valid_len ); //debug point
 	}
 	return 0;
 }
@@ -267,7 +265,6 @@ int s_online_recv( void* clie_sockfd_ptr ){
 
 //send a logout message to server
 int s_online_end( int clie_sockfd ){
-	printf( "Enter s_online_end()\n" );	//debug point
 	if( send( clie_sockfd, "<logout>", strlen("<logout>"), 0 ) <= 0 ){
 		fprintf( stderr, "Fail at send <logout>, %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) );
 		return -1;
@@ -337,7 +334,6 @@ int s_online_ftp( int clie_sockfd ){
 		}
 	}
 	printf( "ALL files tranfered.\n" );
-	//TODO debug!!
 	return 0;
 }
 
@@ -425,6 +421,6 @@ int s_online_msg( int clie_sockfd ){
 	}
 	
 	//Send ends.
-	fprintf( stderr, "Fail at getline() , %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) ); //debug point
+	//fprintf( stderr, "Fail at getline() , %s, %d. ERROR_MSG: %s\n", __FILE__, __LINE__, strerror(errno) ); //debug point
 	return 0;
 }
