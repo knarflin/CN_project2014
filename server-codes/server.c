@@ -92,6 +92,7 @@ void* threadSecondSrv(void* arg)
 		i=job_get(OurBuf,&jptr); 
 		//printf("%s", ImDebug);
 		if(i==0){
+			filter(jptr->content);
 			sprintf(totransmitBuf, "<username>%s<\\><message>%s<\\>",jptr->src_usr ,jptr->content);
 			write(thrdPtr->conn_fd, totransmitBuf, strlen(totransmitBuf));
 			print_job(jptr);
