@@ -183,7 +183,7 @@ void jobqueue_test(){
 	if(i==0){
 		print_job(jptr);
 		// the server should do the job now...
-		free(jptr); // after the job is done, free it
+		job_free(jptr); // after the job is done, free it
 	}
 	else if(i==-1) printf("Job queue is empty!\n");
 	else if(i==-2) printf("No such user!\n");
@@ -195,7 +195,7 @@ void jobqueue_test(){
 	if(i==0){
 		print_job(jptr);
 		// the server should do the job now...
-		free(jptr);
+		job_free(jptr);
 	}
 	else if(i==-1) printf("Job queue is empty!\n");
 	else if(i==-2) printf("No such user!\n");
@@ -207,7 +207,7 @@ void jobqueue_test(){
 	if(i==0){
 		print_job(jptr);
 		// the server should do the job now...
-		free(jptr);
+		job_free(jptr);
 	}
 	else if(i==-1) printf("Job queue is empty!\n");
 	else if(i==-2) printf("No such user!\n");
