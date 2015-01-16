@@ -65,7 +65,7 @@ const  char signupBadU[] = "<signup-badU>";
 const  char loginGood[]  = "<login-good>";
 const  char loginBadU[]  = "<login-badU>";
 const  char loginBadP[]  = "<login-badP>";
-const  char logoutConfirmed[] = "<logout-con>"
+const  char logoutConfirmed[] = "<logout-con>";
 
 typedef struct thrdData
 {
@@ -73,15 +73,60 @@ typedef struct thrdData
 	int listen_fd;
 } TD;
 
+typedef struct secondThrdData
+{
+	int conn_fd;
+	char nameBuf[2000];
+}STD;
+
+void* threadSecondSrv(void* arg)
+{
+	//only conn_fd is valid; listen_fd is meaningless/unknown
+	char OurBuf[bufSize];
+	STD *thrdPtr = arg;
+	sprintf(OurBuf, "%s", thrdPtr->nameBuf);
+	//have the account's name(acc) in OurBuf now
+	struct job* jptr;
+	int i;
+	char totransmitBuf[bufSize];
+	
+	while(1)
+	{
+		//TODO: check whether message exists + tell the user(acc)
+		i=job_get(OurBuf,&jptr); 
+		//printf("%s", ImDebug);
+		if(i==0){
+			sprintf(totransmitBuf, "<username>%s<\\><message>%s<\\>",jptr->src_usr ,jptr->content);
+			write(thrdPtr->conn_fd, totransmitBuf, strlen(totransmitBuf));
+			print_job(jptr);
+			free(jptr); 
+		}
+		else 
+			if(i==-1) 
+				printf("%u: Job queue is empty!\n", pthread_self());
+		else 
+			if(i==-2) 
+				printf("%u: No such user!\n", pthread_self());
+		sleep(5);
+	}
+	pthread_exit((void *) 1);
+}
+
 int dealwithLoginout( 	int conn_fd, char OurBuf[], char dst1[], int twoArguement, 
 			int continuityIndex, char acc[], int* islogin, int* istonextstage)
 {
 	int  i;
 	char justBuf[bufSize];
 	char dstbuf [bufSize];
+	pthread_t tid2;
 	for(i = 0; i<bufSize	 ; i++) { dstbuf[i] = '\0';	}
 	for(i = 0; i<strlen(dst1); i++) { dstbuf[i] = dst1[i]; 	}
 
+	
+	STD data;
+	data.conn_fd = conn_fd; 
+	sprintf(data.nameBuf, "%s", acc);
+	
 	if(continuityIndex == ThisIsAUserName)
 	{
 		if(twoArguement == 0 || OurBuf[0] != 'u')
@@ -113,10 +158,13 @@ int dealwithLoginout( 	int conn_fd, char OurBuf[], char dst1[], int twoArguement
 				printf("Logging in account...\n");
 				if(i==0) 
 				{
-					printf("Correct password, Bravo!\n");
 					sprintf(justBuf, "%s", loginGood);
 					write(conn_fd, justBuf, strlen(justBuf));
 					*istonextstage = ThisIsGoTONextStage;
+					int err = pthread_create(&tid2, NULL, &threadSecondSrv, &data);
+					if(err != 0)
+						printf("GG, cant create thrd2\n");
+					printf("Correct password, Bravo!\n");
 				}
 				else if(i==1) 
 				{
@@ -196,17 +244,40 @@ int KnockMtransFiletrans( int conn_fd, char OurBuf[], char* dst1, int twoArgueme
 			  int continuityIndex, char acc[], int* islogin, int *istonextstage )
 {
 	char justBuf[bufSize];
-	if(continuityIndex == 0)//???
-	{
-		if(twoArguement == 0 || OurBuf[0] != 'k')
+	char dstbuf[bufSize];
+	int i;
+	for(i = 0;i<bufSize;i++)
+		dstbuf[i] = '\0';
+	for(i = 0;i<strlen(dst1);i++)
+		dstbuf[i] = dst1[i];
+	/*
+	char NameBuf[bufSize];
+	memset(NameBuf, 0, sizeof(NameBuf));
+	for(i = 0;i<strlen(toWhoseAcc);i++)
+		NameBuf[i] = toWhoseAcc[i];*/
+	
+		if(twoArguement == 1 && OurBuf[0] == 'u')
 		{
-			printf("Hey, U should do: <knock>userName + enter\n");
-			return ThisIsAKnock;
+			//TODO: get Name
+			memset(toWhoseAcc, 0, sizeof(toWhoseAcc));
+			sprintf(toWhoseAcc, "%s", dstbuf);
+			printf("there's a target username: %s in the 2nd handler\n", toWhoseAcc);
+			return 0;
 		}
-		else
+		else if(twoArguement == 1 && OurBuf[0] == 'm')
+		{
+			//TODO: send message
+			i=job_assign(toWhoseAcc, acc,'m',0,NULL,dstbuf);
+			if(i==0) 
+				printf("Successfully queued message!\n");
+			else if(i==-2) 
+				printf("No such destination user!haha~\n");
+			return 0;
+		}
+		else if(twoArguement == 1 && OurBuf[0] == 'k')
 		{
 			printf("there's a knock, dont be afraid~\n");
-			//TODO: change name
+			//TODO: knock
 			if( is_online(dst1) == 1 )
 			{
 				sprintf(justBuf, "%s", userOnline);
@@ -221,15 +292,14 @@ int KnockMtransFiletrans( int conn_fd, char OurBuf[], char* dst1, int twoArgueme
 			}
 			return 0;
 		}
-	}
-	else 
-		return -1126;
+		return 0;
 }
 
 void* threadAnothSrv(void* arg)
 {
 	char OurBuf[bufSize];
-	char acc[bufSize];
+	char acc[1000];
+	char toWhoseAcc[2000];
 	int  continuityIndex 	= 0;
 	int  islogin 		= 0;
 	int  istonextstage 	= 0;
@@ -248,7 +318,7 @@ void* threadAnothSrv(void* arg)
 			continue;
 		}
 		char* pos;
-		char dst[2][bufSize];
+		char dst[2][1000];
 		char* dest[2]={dst[0],dst[1]};
 		pos = requestP[thrdPtr->conn_fd].buf;
 
@@ -258,8 +328,6 @@ void* threadAnothSrv(void* arg)
 			//printf("msg = %s\n", pos);
 			if(parse(&pos,dest,NULL,NULL,NULL)) // return 1 for succeed
 			{
-				//printf("%s: %s\n",dst[0],dest[1]);
-				//TODO: we must act
 				if(strlen(dest[1]) == 0)
 					twoArguement = 0;
 				else
